@@ -270,7 +270,8 @@ export class Painter {
 
     layers.forEach((L, li) => {
       const cell = Math.max(2, L.size * min);
-      const nx = Math.ceil(this.W / cell), ny = Math.ceil(this.H / cell);
+      // one cell of bleed on every side, so the picture runs off the edges
+      const nx = Math.ceil(this.W / cell) + 2, ny = Math.ceil(this.H / cell) + 2;
       const cells = nx * ny;
       const count = Math.round(cells * L.over);
       const start = xs.length;
@@ -282,9 +283,8 @@ export class Painter {
       }
       for (let k = 0; k < count; k++) {
         const c = order[k % cells];
-        const x = ((c % nx) + rnd()) * cell;
-        const y = (Math.floor(c / nx) + rnd()) * cell;
-        if (x > this.W || y > this.H) continue;
+        const x = ((c % nx) + rnd() - 1) * cell;
+        const y = (Math.floor(c / nx) + rnd() - 1) * cell;
         const u = (x - rect.x) / rect.w, v = (y - rect.y) / rect.h;
         let m = 0, a;
         if (this.grad) {

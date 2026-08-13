@@ -16,7 +16,7 @@ const DEFAULTS = {
   focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4,
   autoBreak: true, autoFocus: false,
   playlist: 'the-ten',
-  volume: .5, stationId: 'secretagent', radioOn: true,
+  volume: .5, stationId: 'secretagent', station: null, radioOn: true,
   chimes: true, recede: true, labelOn: true, grain: true,
 };
 
@@ -217,7 +217,7 @@ $('#intro-go').onclick = () => {
   if (settings.radioOn) {
     radio.play();
     if (firstRun) setTimeout(() => ui.toast({
-      kicker: 'Now playing', name: `${(STATIONS.find(s => s.id === settings.stationId) || STATIONS[0]).name} · SomaFM`,
+      kicker: 'Now playing', name: `${radio.remembered().name} · press M for silence`,
       seal: '♪', ms: 6000,
     }), 1800);
   }

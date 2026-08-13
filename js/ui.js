@@ -237,6 +237,7 @@ export class UI {
   renderDiscovered(list, tag) {
     const box = $('#discovered');
     if (!box) return;
+    const adhoc = this.s.station;
     box.innerHTML = list.length ? list.map(s => `
       <button class="row ${s.id === this.s.stationId ? 'is-on' : ''}" data-station="${escapeHtml(s.id)}" data-adhoc='${escapeHtml(JSON.stringify(s))}'>
         <i class="row__dot"></i>
@@ -246,6 +247,11 @@ export class UI {
         </span>
       </button>`).join('')
       : `<p class="sect__note">Nothing answered for “${escapeHtml(tag)}”. Try another.</p>`;
+    if (adhoc && !list.some(s => s.id === adhoc.id) && adhoc.id === this.s.stationId) box.insertAdjacentHTML('afterbegin', `
+      <button class="row is-on" data-station="${escapeHtml(adhoc.id)}" data-adhoc='${escapeHtml(JSON.stringify(adhoc))}'>
+        <i class="row__dot"></i><span class="row__text">
+        <span class="row__name">${escapeHtml(adhoc.name)}</span>
+        <span class="row__note">${escapeHtml(adhoc.note || 'playing now')}</span></span></button>`);
   }
 
   renderBadges() {

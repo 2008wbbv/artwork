@@ -85,11 +85,19 @@ export class Radio {
 
   get volume() { return this.s.volume; }
 
+  /** whatever was playing last time, curated or found */
+  remembered() {
+    return STATIONS.find(s => s.id === this.s.stationId)
+      || (this.s.station?.url ? this.s.station : null)
+      || STATIONS[0];
+  }
+
   async play(station) {
-    const st = station || this.station || STATIONS.find(s => s.id === this.s.stationId) || STATIONS[0];
+    const st = station || this.station || this.remembered();
     const changing = st !== this.station;
     this.station = st;
     this.s.stationId = st.id;
+    this.s.station = st.src === 'rb' ? st : null;      // curated ones are found by id
     if (changing) { this._tryIdx = 0; this._told = null; this.el.src = st.url; this.track = ''; }
     try {
       this.el.volume = 0;
