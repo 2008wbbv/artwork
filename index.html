@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>artwork — a pomodoro that paints</title>
+<meta name="description" content="A minimal pomodoro timer. Each session a museum painting paints itself, stroke by stroke, for exactly as long as you work.">
+<meta name="theme-color" content="#0c0b0a">
+<meta name="color-scheme" content="dark">
+<meta property="og:title" content="artwork">
+<meta property="og:description" content="A pomodoro timer where a museum painting paints itself for exactly as long as you work.">
+<meta property="og:type" content="website">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://api.artic.edu">
+<link rel="preconnect" href="https://collectionapi.metmuseum.org">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600&family=Instrument+Serif:ital@0;1&display=swap">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<!-- the painting -->
+<canvas id="stage" aria-hidden="true"></canvas>
+<div class="veil" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
+
+<div id="shell" class="shell" data-state="idle">
+
+  <header class="bar bar--top">
+    <div class="wordmark" title="artwork">
+      <span>artwork</span>
+      <i class="wordmark__dot" aria-hidden="true"></i>
+    </div>
+    <button class="chip" id="playlist-chip" aria-haspopup="dialog">
+      <span class="chip__kicker" id="playlist-group">Curated</span>
+      <span class="chip__name" id="playlist-name">The Ten</span>
+    </button>
+  </header>
+
+  <main class="centre">
+    <p class="phase" id="phase-label">Focus</p>
+    <div class="clock">
+      <time id="clock" datetime="PT25M">25:00</time>
+    </div>
+    <div class="rail" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Session progress">
+      <i id="rail-fill"></i>
+    </div>
+    <div class="actions">
+      <button class="btn btn--primary" id="btn-start" aria-keyshortcuts="Space">Begin</button>
+      <button class="btn btn--ghost" id="btn-skip" title="Skip to the next interval (S)">Skip</button>
+      <button class="btn btn--ghost" id="btn-reset" title="Reset this interval (R)">Reset</button>
+    </div>
+    <div class="cycle" id="cycle" aria-label="Pomodoros this set"></div>
+  </main>
+
+  <footer class="bar bar--bottom">
+    <figure class="label" id="wall-label" hidden>
+      <figcaption>
+        <p class="label__title" id="label-title"></p>
+        <p class="label__artist" id="label-artist"></p>
+        <p class="label__meta" id="label-meta"></p>
+        <p class="label__note" id="label-note"></p>
+        <p class="label__where">
+          <a id="label-link" href="#" target="_blank" rel="noopener noreferrer"><span id="label-museum"></span><i aria-hidden="true">↗</i></a>
+        </p>
+      </figcaption>
+    </figure>
+
+    <div class="nowplaying" id="nowplaying" hidden>
+      <i class="eq" aria-hidden="true"><b></b><b></b><b></b></i>
+      <span id="np-text"></span>
+    </div>
+
+    <nav class="dock" aria-label="Controls">
+      <button class="ico" id="btn-next-art" title="Another painting (N)" aria-label="Another painting">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17.5c3.2-9 6.4-9 8.6-4.5s5.4 4.5 7.4-2.2"/><path d="M17.4 3.6 20.8 7l-3.4 3.4"/></svg>
+      </button>
+      <button class="ico" id="btn-sound" title="Sound (M) — right-click for stations" aria-label="Sound">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.4L12 5.6v12.8L7.4 14.5H4z"/><path class="wave1" d="M15.6 9.4a4 4 0 0 1 0 5.2"/><path class="wave2" d="M18.4 6.9a7.6 7.6 0 0 1 0 10.2"/></svg>
+      </button>
+      <button class="ico" id="btn-badges" title="Badges (B)" aria-label="Badges">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2 14.5 8l5.3.8-3.8 3.7.9 5.3-4.9-2.6-4.9 2.6.9-5.3L4.2 8.8 9.5 8z"/></svg>
+      </button>
+      <button class="ico" id="btn-settings" title="Settings (,)" aria-label="Settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.1"/><path d="M12 2.6v2.6M12 18.8v2.6M21.4 12h-2.6M5.2 12H2.6M18.6 5.4l-1.8 1.8M7.2 16.8l-1.8 1.8M18.6 18.6l-1.8-1.8M7.2 7.2 5.4 5.4"/></svg>
+      </button>
+    </nav>
+  </footer>
+
+</div>
+
+<!-- drawer -->
+<div class="scrim" id="scrim" hidden></div>
+<section class="drawer" id="drawer" role="dialog" aria-modal="false" aria-label="Panel" hidden>
+  <header class="drawer__head">
+    <nav class="tabs" id="tabs">
+      <button data-tab="playlists" class="is-on">Playlists</button>
+      <button data-tab="sound">Sound</button>
+      <button data-tab="badges">Badges</button>
+      <button data-tab="settings">Settings</button>
+    </nav>
+    <button class="ico ico--close" id="drawer-close" aria-label="Close">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+  </header>
+  <div class="drawer__body">
+    <div class="panel" data-panel="playlists" id="panel-playlists"></div>
+    <div class="panel" data-panel="sound" id="panel-sound" hidden></div>
+    <div class="panel" data-panel="badges" id="panel-badges" hidden></div>
+    <div class="panel" data-panel="settings" id="panel-settings" hidden></div>
+  </div>
+</section>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<div class="intro" id="intro">
+  <div class="intro__inner">
+    <h1 class="intro__mark">artwork</h1>
+    <p class="intro__line">A painting from a museum collection paints itself,<br>stroke by stroke, for exactly as long as you work.</p>
+    <button class="btn btn--primary btn--lg" id="intro-go">Begin a session</button>
+    <p class="intro__fine">25 minutes of focus · 5 minutes of rest · everything runs in this browser</p>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+<noscript><p style="color:#e9e4dc;font-family:system-ui;padding:3rem">artwork needs JavaScript — the paintings are rendered live in your browser.</p></noscript>
+</body>
+</html>
