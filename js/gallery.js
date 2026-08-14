@@ -4,7 +4,7 @@
    what you've already been shown.
    ============================================================ */
 import { runQuery, loadImage, targetWidth } from './sources.js';
-import { load, save, cached } from './store.js';
+import { list, save, cached } from './store.js';
 import { shuffle, pool } from './util.js';
 import { byId } from './playlists.js';
 
@@ -66,14 +66,14 @@ export class Gallery {
 
   /** unseen first, then everything else — both shuffled */
   _orderFor(items) {
-    const seen = new Set(load('seen', []));
+    const seen = new Set(list('seen'));
     const fresh = [], again = [];
     items.forEach((a, n) => (seen.has(a.key) ? again : fresh).push(n));
     return [...shuffle(fresh), ...shuffle(again)];
   }
 
   markSeen(key) {
-    const seen = load('seen', []).filter(k => k !== key);
+    const seen = list('seen').filter(k => k !== key);
     seen.push(key);
     save('seen', seen.slice(-SEEN_CAP));
   }

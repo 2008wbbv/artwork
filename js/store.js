@@ -12,6 +12,12 @@ export function load(key, fallback) {
   } catch { return fallback; }
 }
 
+/** load a key that must be a list — a value of the wrong shape reads as empty */
+export function list(key) {
+  const val = load(key, []);
+  return Array.isArray(val) ? val : [];
+}
+
 export function save(key, val) {
   mem.set(key, val);
   try { localStorage.setItem(NS + key, JSON.stringify(val)); } catch { /* private mode */ }

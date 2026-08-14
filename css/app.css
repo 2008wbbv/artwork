@@ -104,6 +104,9 @@ a{color:inherit}
   gap:1rem;
 }
 .shell > *{min-width:0}
+/* nothing of the interface shows through the opening screen */
+.shell[data-intro="1"]{opacity:0;pointer-events:none}
+.shell{transition:opacity 900ms var(--ease) 260ms}
 
 /* while you're working, everything except the clock goes away entirely */
 .shell[data-recede="1"] .bar--top,
@@ -506,16 +509,23 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
 .hall::-webkit-scrollbar-thumb{background:var(--line);border-radius:99px;border:3px solid transparent;background-clip:content-box}
 
 .room{
-  flex:0 0 auto;display:flex;flex-direction:column;justify-content:center;
-  padding:0 clamp(2.5rem,6vw,6rem);position:relative;
+  flex:0 0 auto;display:flex;flex-direction:column;justify-content:flex-start;
+  padding:clamp(1.4rem,4vh,3.2rem) clamp(2.5rem,6vw,6rem) 0;position:relative;
 }
 /* the way through to the next room */
 .room + .room::before{
-  content:"";position:absolute;left:-1.5rem;top:11%;bottom:15%;width:3rem;
-  border-radius:1.5rem 1.5rem 2px 2px;
-  background:linear-gradient(#0b0a09,#060505 62%,#0a0908);
-  box-shadow:inset 0 0 34px rgba(0,0,0,.9),0 0 0 1px rgba(244,239,230,.055),
-             0 0 40px rgba(255,240,206,.035);
+  content:"";position:absolute;left:-1.6rem;top:14%;bottom:4.4rem;width:3.2rem;
+  border-radius:1.6rem 1.6rem 1px 1px;
+  background:linear-gradient(rgba(20,17,13,.92),rgba(13,11,9,.94) 58%,rgba(28,23,17,.9));
+  box-shadow:inset 0 0 26px rgba(0,0,0,.75),0 0 0 1px rgba(244,239,230,.07),
+             0 0 34px rgba(255,240,206,.04);
+}
+/* the light that falls out of it onto the floor */
+.room + .room::after{
+  content:"";position:absolute;left:-2.6rem;bottom:2.6rem;width:5.2rem;height:2.6rem;
+  pointer-events:none;
+  background:radial-gradient(closest-side ellipse at 50% 100%,
+    rgba(255,238,200,.09),rgba(255,238,200,0) 82%);
 }
 .room__n{
   margin:0 0 .5rem;font-size:.55rem;letter-spacing:.34em;text-transform:uppercase;color:var(--ink-4);
@@ -543,11 +553,14 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
 }
 .room__note{margin:0 0 2.2rem;font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-4)}
 .wall{
-  display:flex;align-items:center;gap:clamp(1.5rem,3vw,3.2rem);
-  padding-bottom:5.2rem;position:relative;min-height:clamp(260px,42vh,420px);
+  flex:1;display:flex;align-items:center;gap:clamp(.9rem,1.8vw,2rem);
+  padding-bottom:clamp(4rem,9vh,7.5rem);position:relative;min-height:clamp(220px,44vh,460px);
 }
-.col{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.6rem}
-.col--stacked{gap:1.3rem}
+.col{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.4rem;
+  transform:translateY(var(--lift,0));margin-left:var(--pull,0);
+}
+.col--stacked{gap:1.1rem}
 .wall::after{                                   /* the rail the pictures hang from */
   content:"";position:absolute;left:0;right:0;bottom:2.2rem;height:1px;
   background:linear-gradient(90deg,transparent,rgba(244,239,230,.09) 8%,rgba(244,239,230,.09) 92%,transparent);
@@ -556,12 +569,16 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
 .hung{
   position:relative;padding:0;background:none;border:0;cursor:pointer;
   display:flex;flex-direction:column;align-items:center;
-  transform:translateY(var(--drop,0));
-  transition:transform 420ms var(--ease);
+  transform:translate(var(--shift,0),var(--drop,0));
+  transition:transform 420ms var(--ease),filter 420ms var(--ease);
 }
-.hung:hover,.hung:focus-visible{transform:translateY(calc(var(--drop,0) - 6px))}
-.col--stacked .hung{transform:none}
-.col--stacked .hung:hover{transform:translateY(-6px)}
+.hung:hover,.hung:focus-visible{
+  transform:translate(var(--shift,0),calc(var(--drop,0) - 7px));
+  z-index:3;
+}
+.col--stacked .hung{transform:translate(calc(var(--shift,0) * .5),0)}
+.col--stacked .hung:hover{transform:translate(calc(var(--shift,0) * .5),-7px);z-index:3}
+.wall:hover .hung:not(:hover){filter:brightness(.78)}
 /* a light from the ceiling track — a pool on the wall, not a panel */
 .hung::before{
   content:"";position:absolute;left:50%;top:-14%;width:150%;height:128%;
@@ -618,7 +635,7 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
 .hung canvas{display:block;box-shadow:0 0 0 1px rgba(0,0,0,.45);background:#151310}
 .hung__tag{
   margin-top:.7rem;font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-4);
-  max-width:15ch;text-align:center;line-height:1.4;
+  max-width:19ch;text-align:center;line-height:1.4;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 .hung:hover .hung__tag{color:var(--ink-2)}
@@ -627,6 +644,12 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
   position:fixed;left:var(--gutter);right:var(--gutter);bottom:var(--gutter);z-index:8;margin:0;
   display:flex;gap:1.4rem;align-items:flex-end;justify-content:space-between;
   pointer-events:none;animation:rise 340ms var(--ease) both;
+}
+/* a wall label, dark enough to read over whatever it lies across */
+.plaque > div{
+  padding:.8rem 1.1rem;border-radius:2px;background:rgba(10,9,8,.74);
+  -webkit-backdrop-filter:blur(16px) saturate(1.05);backdrop-filter:blur(16px) saturate(1.05);
+  box-shadow:0 0 0 1px rgba(244,239,230,.06),0 16px 38px rgba(0,0,0,.5);
 }
 .plaque__title{font-family:var(--serif);font-style:italic;font-size:1.25rem;line-height:1.15;margin:0}
 .plaque__by{font-size:.7rem;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-2);margin:.34rem 0 0}
@@ -675,12 +698,17 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
 }
 .intro[data-gone="1"]{opacity:0;visibility:hidden;pointer-events:none}
 .intro__inner{display:flex;flex-direction:column;align-items:center;gap:2.6rem;text-align:center}
+/* the button waits until the paint is down */
+.intro #intro-go{
+  background:#f4efe6;color:#12100e;
+  animation:fadeUp 800ms var(--ease) 2350ms both;
+}
 
 .intro__mark{
   position:relative;display:inline-block;margin:0;
   font-size:clamp(2.8rem,10vw,5.4rem);font-weight:200;letter-spacing:-.055em;line-height:1.06;
   color:#f4efe6;
-  animation:fadeUp 1400ms var(--ease) both;
+  animation:fadeUp 900ms var(--ease) both;
 }
 .mark__ink{display:block;padding:0 .06em}
 /* the same word in paint, revealed through a ragged sweep */
@@ -690,9 +718,12 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
   -webkit-mask-size:300% 220%;mask-size:300% 220%;
   -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
   -webkit-mask-position:100% 50%;mask-position:100% 50%;
-  animation:brushed 1700ms cubic-bezier(.36,.06,.2,1) 900ms forwards;
+  animation:brushed 1250ms linear 900ms forwards, settle 700ms var(--ease) 2150ms both;
 }
 @keyframes brushed{to{-webkit-mask-position:0% 50%;mask-position:0% 50%}}
+/* the paint darkens a little as it takes */
+@keyframes settle{from{color:#b8912f}to{color:#a8842a}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 
 /* the mark the brush leaves as it goes */
 .mark__brush{
@@ -700,7 +731,7 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
   transform:translate(-115%,-50%);
   background:var(--stroke) center/100% 100% no-repeat;
   opacity:0;pointer-events:none;
-  animation:brushing 1700ms cubic-bezier(.36,.06,.2,1) 900ms forwards;
+  animation:brushing 1900ms linear 900ms both;
 }
 /* the brush itself, its tip at the wet end of the mark */
 .mark__tool{
@@ -708,23 +739,30 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
   transform:translate(-72%,-50%);
   background:var(--brush) center/contain no-repeat;
   opacity:0;pointer-events:none;
-  animation:tooling 1700ms cubic-bezier(.36,.06,.2,1) 900ms forwards;
+  animation:tooling 2050ms 550ms forwards;
 }
+/* in from the left, down onto the word, across it, then up and away */
 @keyframes tooling{
-  0%{transform:translate(-72%,-50%) rotate(-2deg);opacity:0}
-  10%{opacity:1}
-  74%{opacity:1}
-  100%{transform:translate(201%,-50%) rotate(2deg);opacity:0}
+  0%  {transform:translate(-148%,-42%) rotate(-9deg) scale(1.04);opacity:0;
+       animation-timing-function:cubic-bezier(.2,.7,.35,1)}
+  9%  {opacity:1}
+  17.1%{transform:translate(-72%,-50%) rotate(-1.4deg) scale(1);
+       animation-timing-function:linear}
+  47.5%{transform:translate(65%,-53%) rotate(0deg) scale(1)}
+  78% {transform:translate(201%,-50%) rotate(1.4deg) scale(1);opacity:1;
+       animation-timing-function:cubic-bezier(.4,0,.75,.6)}
+  100%{transform:translate(246%,-88%) rotate(15deg) scale(.92);opacity:0}
 }
 @keyframes brushing{
-  0%{transform:translate(-115%,-50%) rotate(-1.5deg);opacity:0}
-  12%{opacity:.9}
-  70%{opacity:.85}
-  100%{transform:translate(158%,-50%) rotate(1.5deg);opacity:0}
+  0%   {transform:translate(-115%,-50%) rotate(-1.4deg);opacity:.92}
+  32.9%{transform:translate(22%,-53%) rotate(0deg);opacity:.9}
+  57.9%{opacity:.85}
+  65.8%{transform:translate(158%,-50%) rotate(1.4deg);opacity:.4}
+  100% {transform:translate(158%,-50%) rotate(1.4deg);opacity:0}
 }
 
 :root{
-  --sweep:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='200'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='.28' stop-color='%23fff' stop-opacity='1'/%3E%3Cstop offset='.52' stop-color='%23fff' stop-opacity='0'/%3E%3C/linearGradient%3E%3Cfilter id='f' x='-25%25' y='-25%25' width='150%25' height='150%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.006 .05' numOctaves='3' seed='11' result='n'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='n' scale='70' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Crect width='600' height='200' fill='url(%23g)' filter='url(%23f)'/%3E%3C/svg%3E");
+  --sweep:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='200'%3E%3Cdefs%3E%3ClinearGradient id='g' gradientUnits='userSpaceOnUse' x1='0' y1='0' x2='600' y2='0'%3E%3Cstop offset='.45' stop-color='%23fff' stop-opacity='1'/%3E%3Cstop offset='.58' stop-color='%23fff' stop-opacity='0'/%3E%3C/linearGradient%3E%3Cfilter id='f' x='-25%25' y='-25%25' width='150%25' height='150%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.006 .05' numOctaves='3' seed='11' result='n'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='n' scale='70' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Crect x='-120' y='-80' width='840' height='360' fill='url(%23g)' filter='url(%23f)'/%3E%3C/svg%3E");
   --brush:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-120 -180 240 360'%3E%3Cg transform='rotate(32)'%3E%3Crect x='-7' y='-192' width='14' height='126' rx='7' fill='%232b2119'/%3E%3Crect x='-6' y='-188' width='5' height='118' rx='2.5' fill='%234a3927'/%3E%3Crect x='-12' y='-70' width='24' height='26' rx='3' fill='%23cdc5b5'/%3E%3Crect x='-12' y='-62' width='24' height='3.5' fill='%23a29a8a'/%3E%3Cpath d='M-11 -46 L11 -46 L7 -6 Q0 5 -7 -6 Z' fill='%23a8842a'/%3E%3Cpath d='M-6 -44 L6 -44 L4 -8 Q0 -1 -4 -8 Z' fill='%23d8b040' opacity='.8'/%3E%3C/g%3E%3C/svg%3E");
   --stroke:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='120' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%23b8912f' stroke-linecap='round'%3E%3Cpath d='M14 62 C70 44 150 76 246 56' stroke-width='44' opacity='.26'/%3E%3Cpath d='M18 60 C74 43 148 74 242 55' stroke-width='26' opacity='.24'/%3E%3Cpath d='M20 48 C78 34 152 62 240 45' stroke-width='3' opacity='.5'/%3E%3Cpath d='M20 56 C80 40 150 70 240 52' stroke-width='2.4' opacity='.44'/%3E%3Cpath d='M22 64 C84 48 154 76 238 58' stroke-width='4' opacity='.4'/%3E%3Cpath d='M22 72 C86 58 150 82 236 66' stroke-width='2' opacity='.36'/%3E%3Cpath d='M24 78 C88 64 152 88 234 72' stroke-width='2.8' opacity='.3'/%3E%3C/g%3E%3C/svg%3E");
 }
@@ -754,7 +792,7 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
   .mark__paint{-webkit-mask-image:none;mask-image:none}
-  .mark__brush{display:none}
+  .mark__brush,.mark__tool{display:none}
 }
 
 :focus-visible{outline:1px solid var(--accent);outline-offset:3px;border-radius:2px}

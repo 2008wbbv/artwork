@@ -12,6 +12,11 @@ import { loadImage } from './sources.js';
 
 const HUSH_AFTER = 6200;
 
+/** how deep a column may hang, given how much wall the screen affords */
+const wallBudget = () => (innerHeight >= 820 ? 2.3 : innerHeight >= 660 ? 1.62 : 1.1);
+/** the side of a miniature on this screen */
+const miniSide = () => Math.min(158, Math.max(92, innerHeight * .17));
+
 export class UI {
   constructor({ settings, ledger }) {
     this.s = settings;
@@ -156,6 +161,7 @@ export class UI {
   /* ----------------------------------------------- drawer */
   openDrawer(tab) {
     const d = this.el.drawer;
+    clearTimeout(this._closing);            // reopening mid-slide must not get hidden behind us
     d.hidden = false; this.el.scrim.hidden = false;
     requestAnimationFrame(() => { d.dataset.open = '1'; this.el.scrim.dataset.open = '1'; });
     if (tab) this.showTab(tab);
@@ -165,7 +171,8 @@ export class UI {
   closeDrawer() {
     const d = this.el.drawer;
     d.dataset.open = '0'; this.el.scrim.dataset.open = '0';
-    setTimeout(() => { d.hidden = true; this.el.scrim.hidden = true; }, 520);
+    clearTimeout(this._closing);
+    this._closing = setTimeout(() => { d.hidden = true; this.el.scrim.hidden = true; }, 520);
     this.armHush();
   }
 
@@ -196,7 +203,7 @@ export class UI {
       const st = style(h);
       return `<button class="hung ${st.mat ? '' : 'hung--nomat'}" data-hung="${escapeHtml(h.k)}"
                 data-room="__ROOM__" data-frame="${st.frame}" data-size="${st.size}"
-                style="--drop:${st.drop}px">
+                style="--drop:${st.drop}px;--shift:${st.shift}px">
         <span class="hung__frame"><span class="hung__mat"><canvas width="10" height="10"></canvas></span></span>
         <span class="hung__tag">${escapeHtml(h.a.title)}</span>
       </button>`;
@@ -206,8 +213,9 @@ export class UI {
         <p class="room__n">Room ${ROMAN[n] || n + 1}</p>
         <h3 class="room__name">${escapeHtml(r.name)}</h3>
         <p class="room__note">${escapeHtml(r.note || '')}</p>
-        <div class="wall">${columns(r.works).map(col =>
-          `<span class="col ${col.length > 1 ? 'col--stacked' : ''}">${col.map(frame).join('')}</span>`
+        <div class="wall">${columns(r.works, wallBudget()).map(col =>
+          `<span class="col ${col.works.length > 1 ? 'col--stacked' : ''}"
+                 style="--lift:${col.lift}px;--pull:${col.pull}px">${col.works.map(frame).join('')}</span>`
         ).join('')}</div>
         <i class="bench" aria-hidden="true"></i>
         ${n % 3 === 1 ? '<i class="palm" aria-hidden="true"></i>' : ''}
@@ -266,7 +274,7 @@ export class UI {
     const { img } = await loadImage(h.a.image(520), 11000);
     const wide = img.naturalWidth >= img.naturalHeight;
     const scale = +el.dataset.size || 1;
-    const side = Math.round(Math.min(170, Math.max(112, window.innerHeight * .19)) * scale);
+    const side = Math.round(miniSide() * scale);
     const w = wide ? side : Math.round(side * (img.naturalWidth / img.naturalHeight));
     const ht = wide ? Math.round(side * (img.naturalHeight / img.naturalWidth)) : side;
     const mini = new Painter(cv, { fixed: { w, h: ht }, coarse: true });
@@ -679,6 +687,7 @@ export class UI {
   setGrain(on) { this.el.grain.style.display = on ? '' : 'none'; }
 
   dismissIntro() {
+    this.el.shell.dataset.intro = '0';
     this.el.intro.dataset.gone = '1';
     setTimeout(() => (this.el.intro.hidden = true), 1200);
   }

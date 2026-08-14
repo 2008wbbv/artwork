@@ -3,7 +3,7 @@
    picture has to finish painting for it to count, which means
    the badges are a record of time spent, not clicks.
    ============================================================ */
-import { load, save } from './store.js';
+import { load, list, save } from './store.js';
 import { nowISODay, daysBetween } from './util.js';
 
 const NATION_ALIAS = {
@@ -65,7 +65,7 @@ export const BADGES = [
 export class Ledger {
   constructor() {
     this.stats = { ...blank(), ...load('stats', {}) };
-    this.unlocked = new Set(load('badges', []));
+    this.unlocked = new Set(list('badges'));
   }
 
   save() { save('stats', this.stats); save('badges', [...this.unlocked]); }
