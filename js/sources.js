@@ -414,6 +414,102 @@ async function harSearch({ params = {}, limit = 40 }, signal) {
     .filter(a => !a.year || a.year < 1900);          // stay clear of anything still in copyright
 }
 
+/* ------------------------------------------------ WIKIMEDIA COMMONS
+   Living painters, where the painter has put the work up themselves
+   under a free licence. Commons is the only one of these that holds
+   anything made this century, which is the only way to reach the
+   canvases behind Minecraft's paintings: Kristoffer Zetterstrand
+   uploaded them himself, CC BY-SA. The licence wants attribution, so
+   it goes on the label next to the picture, not in a credits file. */
+
+/* The ones cut down to 16×16 and hung in the game. Only the four
+   that are documented beyond doubt — the rest of his canvases are
+   here on their own merit, not on a guess about which block they
+   ended up on. */
+const IN_GAME = {
+  'wanderer': 'Wanderer',
+  'graham': 'Graham',
+  'bonjour monsieur courbet': 'Courbet',
+  'the stage is set': 'Stage',
+};
+
+const COMMONS_FILE = 'https://commons.wikimedia.org/wiki/Special:FilePath/';
+
+/** "The stage is set. by Kristoffer Zetterstrand.jpg" → "The Stage Is Set" */
+function commonsTitle(file, artist) {
+  let t = file.replace(/^File:/, '').replace(/\.\w+$/, '');
+  const first = artist.split(/\s+/)[0];
+  t = t.replace(new RegExp(`[,.]?\\s*(painting|diptych)?\\s*by\\s+${first}[\\w\\s]*$`, 'i'), '');
+  t = t.replace(/[,.]\s*$/, '').replace(/_/g, ' ').trim();
+  return t.replace(/\b\w/g, c => c.toUpperCase()).replace(/\b(And|Or|The|Of|A|An|In|On)\b/g, c => c.toLowerCase())
+    .replace(/^./, c => c.toUpperCase());
+}
+
+/** a description that only repeats the medium is not worth the line */
+function describe(text, medium) {
+  const bare = t => t.toLowerCase().replace(/[^a-z]/g, '');
+  if (!text) return '';
+  if (bare(text) === bare(medium || '') || bare(text) === 'oiloncanvas') return '';
+  return text;
+}
+
+function fromCommons(page, artist) {
+  const ii = page.imageinfo?.[0];
+  if (!ii || !/^image\/(jpeg|png)$/.test(ii.mime || '')) return null;
+  const m = ii.extmetadata || {};
+  const credited = plain(m.Artist?.value) + ' ' + plain(m.Credit?.value);
+  // the search index turns up every Zetterstrand who ever lived
+  if (!credited.toLowerCase().includes(artist.toLowerCase())) return null;
+  const licence = plain(m.LicenseShortName?.value);
+  if (!licence || /fair use|non-free/i.test(licence)) return null;
+  const file = page.title.replace(/^File:/, '');
+  const title = commonsTitle(page.title, artist);
+  if (!title) return null;
+  const src = COMMONS_FILE + encodeURIComponent(file);
+  const game = IN_GAME[title.toLowerCase()];
+  return finish({
+    key: 'com:' + page.pageid,
+    src: 'com',
+    museum: 'Wikimedia Commons',
+    museumShort: 'Wikimedia Commons',
+    city: '',
+    title,
+    artist,
+    artistBio: '',
+    nationality: '',
+    date: (plain(m.DateTimeOriginal?.value) || '').slice(0, 4),
+    medium: plain(m.Medium?.value) || 'Oil on canvas',
+    dims: '',                                      // Commons knows the pixels, not the canvas
+    credit: licence,                               // the licence goes on the label, as it must
+    place: '',
+    culture: '',
+    style: '',
+    classification: 'Painting',
+    department: '',
+    gallery: '',
+    note: game
+      ? `Cut down to sixteen pixels a side, this hangs in Minecraft as “${game}”.`
+      : describe(plain(m.ImageDescription?.value, 240), plain(m.Medium?.value)),
+    alt: [title, artist].filter(Boolean).join(', '),
+    url: 'https://commons.wikimedia.org/wiki/File:' + encodeURIComponent(file).replace(/%20/g, '_'),
+    lqip: '',
+    ratio: ii.width && ii.height ? ii.width / ii.height : 0,
+    image: w => `${src}?width=${Math.min(w, 1600)}`,
+    hiRes: `${src}?width=2000`,
+  });
+}
+
+async function comSearch({ artist = '', limit = 40 }, signal) {
+  if (!artist) return [];
+  const p = new URLSearchParams({
+    action: 'query', format: 'json', origin: '*', generator: 'search',
+    gsrsearch: `insource:"${artist}"`, gsrnamespace: '6', gsrlimit: String(limit),
+    prop: 'imageinfo', iiprop: 'url|size|extmetadata|mime',
+  });
+  const j = await fetchJSON(`https://commons.wikimedia.org/w/api.php?${p}`, { signal });
+  return Object.values(j?.query?.pages || {}).map(page => fromCommons(page, artist)).filter(Boolean);
+}
+
 /* ---------------------------------------------------------- */
 const SOURCES = {
   aic: { name: 'Art Institute of Chicago', run: aicSearch },
@@ -422,6 +518,7 @@ const SOURCES = {
   vam: { name: 'Victoria and Albert Museum', run: vamSearch },
   smk: { name: 'Statens Museum for Kunst', run: smkSearch },
   wd:  { name: 'Wikidata · the sum of all paintings', run: wdSearch },
+  com: { name: 'Wikimedia Commons', run: comSearch },
   har: { name: 'Harvard Art Museums', run: harSearch, needs: 'harvard' },
 };
 

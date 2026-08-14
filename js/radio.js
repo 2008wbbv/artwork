@@ -8,7 +8,7 @@
        stations outside the curated shelf.
    ============================================================ */
 import { fetchJSON } from './util.js';
-import { load, save } from './store.js';
+import { load, list, save } from './store.js';
 
 const SOMA = (id, q = 128) => `https://ice1.somafm.com/${id}-${q}-mp3`;
 
@@ -30,13 +30,66 @@ export const STATIONS = [
 const MIRRORS = ['https://de1.api.radio-browser.info', 'https://de2.api.radio-browser.info', 'https://all.api.radio-browser.info'];
 
 export const DISCOVER_TAGS = [
-  { tag: 'jazz',       label: 'Jazz' },
-  { tag: 'lounge',     label: 'Lounge' },
-  { tag: 'bossa nova', label: 'Bossa nova' },
-  { tag: 'deep house', label: 'Deep house' },
-  { tag: 'downtempo',  label: 'Downtempo' },
-  { tag: 'ambient',    label: 'Ambient' },
+  { tag: 'jazz',             label: 'Jazz' },
+  { tag: 'lounge',           label: 'Lounge' },
+  { tag: 'bossa nova',       label: 'Bossa nova' },
+  { tag: 'deep house',       label: 'Deep house' },
+  { tag: 'downtempo',        label: 'Downtempo' },
+  { tag: 'ambient',          label: 'Ambient' },
+  { tag: 'video game music', label: 'Game music' },
+  { tag: 'chiptune',         label: 'Chiptune' },
 ];
+
+/* ------------------------------------------------------- yours
+   Two ways to bring your own: a stream URL, which is remembered,
+   and files off this machine, which are not — the browser hands
+   out a URL for a picked file that dies with the tab, and there
+   is no way to keep one without uploading the file somewhere.
+   Nothing here is uploaded anywhere, so files are re-picked each
+   session. */
+
+/** stream URLs the listener has added, oldest first */
+export const mine = () => list('mine').filter(s => s && s.url);
+
+export function addMine({ url, name }) {
+  const clean = String(url || '').trim();
+  if (!/^https:\/\//i.test(clean)) throw new Error('needs to start with https://');
+  const list = mine().filter(s => s.url !== clean);
+  const st = {
+    src: 'mine', g: 'Yours', id: 'mine:' + clean, url: clean, alts: [], home: '',
+    name: (name || '').trim() || labelFor(clean),
+    note: 'Added by you',
+  };
+  list.push(st);
+  save('mine', list.slice(-40));
+  return st;
+}
+
+export function dropMine(id) {
+  save('mine', mine().filter(s => s.id !== id));
+}
+
+/** something readable off a bare URL */
+function labelFor(url) {
+  try {
+    const u = new URL(url);
+    const last = u.pathname.split('/').filter(Boolean).pop() || '';
+    return (last.replace(/\.\w{2,4}$/, '').replace(/[-_]+/g, ' ').trim() || u.hostname).slice(0, 46);
+  } catch { return url.slice(0, 46); }
+}
+
+/** a station made out of files picked off this machine */
+export function fromFiles(files) {
+  const tracks = [...files]
+    .filter(f => f.type.startsWith('audio/') || /\.(mp3|m4a|ogg|oga|opus|wav|flac|aac|webm)$/i.test(f.name))
+    .map(f => ({ name: f.name.replace(/\.\w+$/, '').replace(/^\d+[\s.\-_]+/, '').slice(0, 60), url: URL.createObjectURL(f) }));
+  if (!tracks.length) return null;
+  return {
+    src: 'files', g: 'Yours', kind: 'files', id: 'files:' + Date.now(),
+    name: tracks.length === 1 ? tracks[0].name : `${tracks.length} tracks off this machine`,
+    note: 'Yours · stays in this browser', tracks, url: tracks[0].url, alts: [], home: '',
+  };
+}
 
 /** community index → a handful of stations that are actually up */
 export async function discover(tag) {
@@ -79,16 +132,23 @@ export class Radio {
     this._tryIdx = 0;
     this._told = null;
     this._stopped = true;
+    this._i = 0;
+    this._bad = 0;
     this.el.addEventListener('error', () => this._fallback());
     this.el.addEventListener('playing', () => { this.playing = true; this.onchange(this); });
     this.el.addEventListener('pause', () => { this.playing = false; this.onchange(this); });
+    // a radio station never ends; a stack of your own records does
+    this.el.addEventListener('ended', () => this.station?.kind === 'files' && this.skip(1));
   }
+
+  get isQueue() { return this.station?.kind === 'files'; }
 
   get volume() { return this.s.volume; }
 
   /** whatever was playing last time, curated or found */
   remembered() {
     return STATIONS.find(s => s.id === this.s.stationId)
+      || mine().find(s => s.id === this.s.stationId)
       || (this.s.station?.url ? this.s.station : null)
       || STATIONS[0];
   }
@@ -98,9 +158,15 @@ export class Radio {
     const changing = st !== this.station || !this.el.getAttribute('src');
     this.station = st;
     this.s.stationId = st.id;
-    this.s.station = st.src === 'rb' ? st : null;      // curated ones are found by id
+    // curated stations are found again by id; found and added ones have to be kept whole,
+    // and a stack of local files cannot be kept at all — its URLs die with the tab
+    this.s.station = st.src === 'rb' || st.src === 'mine' ? st : null;
     this._stopped = false;
-    if (changing) { this._tryIdx = 0; this._told = null; this.el.src = st.url; this.track = ''; }
+    if (changing) {
+      this._tryIdx = 0; this._told = null; this.track = '';
+      this._i = 0;
+      this.el.src = st.kind === 'files' ? st.tracks[0].url : st.url;
+    }
     try {
       this.el.volume = 0;
       await this.el.play();
@@ -122,6 +188,31 @@ export class Radio {
   }
 
   toggle() { this.playing ? this.stop() : this.play(); }
+
+  /** forwards or back through your own tracks; wraps both ways */
+  skip(by = 1) {
+    const st = this.station;
+    if (st?.kind !== 'files') return;
+    const n = st.tracks.length;
+    this._i = ((this._i + by) % n + n) % n;
+    this._stopped = false;
+    this.el.src = st.tracks[this._i].url;
+    this.el.volume = this.s.volume;
+    this.el.play().catch(() => {});
+    this._watch();
+  }
+
+  shuffle() {
+    const st = this.station;
+    if (st?.kind !== 'files' || st.tracks.length < 3) return;
+    const here = st.tracks[this._i];
+    for (let i = st.tracks.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [st.tracks[i], st.tracks[j]] = [st.tracks[j], st.tracks[i]];
+    }
+    this._i = st.tracks.indexOf(here);
+    this.onchange(this);
+  }
 
   setVolume(v) {
     this.s.volume = v;
@@ -150,6 +241,13 @@ export class Radio {
 
   _fallback() {
     if (this._stopped) return;
+    // one unreadable file shouldn't end the evening
+    if (this.station?.kind === 'files') {
+      if (++this._bad <= this.station.tracks.length) return this.skip(1);
+      this._bad = 0;
+      this.playing = false;
+      return this.onchange(this, this._once(new Error('none of those would play')));
+    }
     const alts = this.station?.alts || [];
     if (this._tryIdx < alts.length) {
       this.el.src = alts[this._tryIdx++];
@@ -167,9 +265,15 @@ export class Radio {
     return err;
   }
 
-  /** SomaFM publishes what's on right now */
+  /** SomaFM publishes what's on right now; your own files say so themselves */
   _watch() {
     clearInterval(this._poll);
+    if (this.station?.kind === 'files') {
+      this._bad = 0;
+      this.track = this.station.tracks[this._i]?.name || '';
+      this.onchange(this);
+      return;
+    }
     if (this.station?.src !== 'soma') { this.track = ''; this.onchange(this); return; }
     const tick = async () => {
       try {

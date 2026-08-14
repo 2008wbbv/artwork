@@ -3,7 +3,7 @@
    ============================================================ */
 import { $, $$, escapeHtml, fmtDuration, reducedMotion } from './util.js';
 import { shelves, GROUPS } from './playlists.js';
-import { STATIONS, DISCOVER_TAGS, discover } from './radio.js';
+import { STATIONS, DISCOVER_TAGS, discover, mine, addMine, dropMine, fromFiles } from './radio.js';
 import { BADGES } from './badges.js';
 import { profile, worksBy } from './artist.js';
 import { rooms, count, when, style, columns } from './museum.js';
@@ -11,6 +11,36 @@ import { Painter } from './painter.js';
 import { loadImage } from './sources.js';
 
 const HUSH_AFTER = 6200;
+
+/** the listener's own stream addresses, with a way to take them back off */
+const ownRows = (list, cur) => (list.length ? list.map(s => `
+  <div class="row row--own ${s.id === cur ? 'is-on' : ''}">
+    <button class="row__pick" data-station="${escapeHtml(s.id)}" data-own='${escapeHtml(JSON.stringify(s))}'>
+      <i class="row__dot"></i>
+      <span class="row__text">
+        <span class="row__name">${escapeHtml(s.name)}</span>
+        <span class="row__note">${escapeHtml(s.url)}</span>
+      </span>
+    </button>
+    <button class="row__drop" data-drop="${escapeHtml(s.id)}" aria-label="Remove ${escapeHtml(s.name)}" title="Remove">×</button>
+  </div>`).join('')
+  : '<p class="sect__note">Nothing of yours yet.</p>');
+/** no two frames on the wall come closer than this */
+const MIN_GAP = 16;
+
+/** the horizontal reach of a column's frames, shifts and all */
+function spanOf(col) {
+  const frames = $$('.hung__frame', col);
+  if (!frames.length) return null;
+  let left = Infinity, right = -Infinity;
+  for (const f of frames) {
+    const r = f.getBoundingClientRect();
+    if (r.width < 2) continue;
+    left = Math.min(left, r.left);
+    right = Math.max(right, r.right);
+  }
+  return left === Infinity ? null : { left, right };
+}
 
 /** how deep a column may hang, given how much wall the screen affords */
 const wallBudget = () => (innerHeight >= 820 ? 2.3 : innerHeight >= 660 ? 1.62 : 1.1);
@@ -32,6 +62,7 @@ export class UI {
       museum: $('#label-museum'), chip: $('#playlist-chip'), chipName: $('#playlist-name'),
       chipGroup: $('#playlist-group'), drawer: $('#drawer'), scrim: $('#scrim'),
       toasts: $('#toasts'), intro: $('#intro'), np: $('#nowplaying'), npText: $('#np-text'),
+      npPrev: $('#np-prev'), npNext: $('#np-next'),
       sound: $('#btn-sound'), grain: $('.grain'),
     };
     this._zoneEls = {
@@ -214,7 +245,7 @@ export class UI {
         <h3 class="room__name">${escapeHtml(r.name)}</h3>
         <p class="room__note">${escapeHtml(r.note || '')}</p>
         <div class="wall">${columns(r.works, wallBudget()).map(col =>
-          `<span class="col ${col.works.length > 1 ? 'col--stacked' : ''}"
+          `<span class="col ${col.works.length > 1 ? 'col--stacked' : ''}" data-pull="${col.pull}"
                  style="--lift:${col.lift}px;--pull:${col.pull}px">${col.works.map(frame).join('')}</span>`
         ).join('')}</div>
         <i class="bench" aria-hidden="true"></i>
@@ -231,6 +262,12 @@ export class UI {
     hall.focus({ preventScroll: true });
     this._paintWalls();
     this.on.museumOpen?.();
+  }
+
+  /** the wall was laid out for a different window; lay it out again */
+  relayout() {
+    if ($('#museum').hidden) return;
+    this.openMuseum();
   }
 
   closeMuseum() {
@@ -259,11 +296,39 @@ export class UI {
     this._draining = true;
     const step = async () => {
       const el = this._queue.shift();
-      if (!el) { this._draining = false; return; }
+      if (!el) { this._draining = false; this._space(); return; }
       await this._paintOne(el).catch(() => {});
+      this._space();
       requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
+  }
+
+  /* Columns lean into their neighbours, and the frames vary in width,
+     so where two happen to land is not knowable before they are on the
+     wall. Measure them and push each column right until nothing is
+     closer to its neighbour than a hand's breadth. One pass, left to
+     right: moving a column moves everything after it. */
+  _space() {
+    cancelAnimationFrame(this._spacing);
+    this._spacing = requestAnimationFrame(() => {
+      for (const room of $$('.room', $('#hall'))) {
+        const cols = $$('.col', room);
+        let prevRight = -Infinity;
+        for (const col of cols) {
+          col.style.setProperty('--pull', (+col.dataset.pull || 0) + 'px');
+          const box = spanOf(col);
+          if (!box) continue;
+          const short = prevRight + MIN_GAP - box.left;
+          if (short > 0) {
+            col.style.setProperty('--pull', Math.round((+col.dataset.pull || 0) + short) + 'px');
+            prevRight = box.right + short;
+          } else {
+            prevRight = box.right;
+          }
+        }
+      }
+    });
   }
 
   async _paintOne(el) {
@@ -416,14 +481,62 @@ export class UI {
           <span class="field__ctl"><button class="sw" id="sw-chimes" aria-pressed="${!!this.s.chimes}" aria-label="Chimes"></button></span>
         </div>
       </section>
+      <section class="sect">
+        <h3 class="sect__head">Yours</h3>
+        <p class="sect__note">Play your own instead. A stream address is remembered; files stay in this
+          browser and are never uploaded anywhere, which also means they have to be picked again next time.</p>
+        <div class="bring">
+          <input type="url" id="own-url" placeholder="https://… stream address" autocomplete="off" spellcheck="false">
+          <button class="btn btn--quiet" id="own-add">Add</button>
+        </div>
+        <div class="bring">
+          <input type="file" id="own-files" accept="audio/*" multiple hidden>
+          <button class="btn btn--quiet bring__wide" id="own-pick">Choose files from this machine…</button>
+        </div>
+        <div id="own-list">${ownRows(mine(), cur)}</div>
+      </section>
       ${groups.map(g => `<section class="sect"><h3 class="sect__head">${escapeHtml(g)}</h3>${rows(STATIONS.filter(s => s.g === g))}</section>`).join('')}
       <section class="sect">
         <h3 class="sect__head">Elsewhere</h3>
-        <p class="sect__note">Search the community radio index for something else in this mood.</p>
+        <p class="sect__note">Search the community radio index for something else in this mood — including
+          the stations that play nothing but game soundtracks.</p>
         <div class="seg" id="tags">${DISCOVER_TAGS.map(t => `<button data-tag="${escapeHtml(t.tag)}">${escapeHtml(t.label)}</button>`).join('')}</div>
         <div id="discovered"></div>
       </section>
       <p class="sect__note">Curated stations come from SomaFM — listener-supported, no adverts. If you leave it on all day, consider chipping in at somafm.com/support.</p>`;
+    const picker = $('#own-files');
+    if (picker) picker.onchange = () => { this._ownFiles(picker.files); picker.value = ''; };
+    const url = $('#own-url');
+    if (url) url.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); this._addOwn(); } };
+  }
+
+  /** repaint just the list of your own stations */
+  _ownList() {
+    const box = $('#own-list');
+    if (box) box.innerHTML = ownRows(mine(), this.s.stationId);
+  }
+
+  _addOwn() {
+    const f = $('#own-url');
+    if (!f || !f.value.trim()) return;
+    try {
+      const st = addMine({ url: f.value });
+      f.value = '';
+      this._ownList();
+      this.on.station?.(st.id, st);
+      this.toast({ kicker: 'Added', name: st.name, seal: '♪', ms: 3400 });
+    } catch (err) {
+      this.toast({ kicker: 'That address won’t work', name: err.message, seal: '◦', ms: 4600 });
+      f.focus();
+    }
+  }
+
+  /** files picked off this machine become a stack of records to play through */
+  _ownFiles(files) {
+    const st = fromFiles(files);
+    if (!st) return this.toast({ kicker: 'Nothing playable', name: 'Those weren’t audio files.', seal: '◦', ms: 4200 });
+    this.on.station?.(st.id, st);
+    this.toast({ kicker: 'Playing yours', name: st.name, seal: '♪', ms: 3400 });
   }
 
   renderDiscovered(list, tag) {
@@ -517,6 +630,7 @@ export class UI {
           <dt><kbd>+</kbd><kbd>−</kbd></dt><dd>five minutes more or less — the brush keeps pace</dd>
           <dt><kbd>n</kbd></dt><dd>another painting</dd>
           <dt><kbd>m</kbd></dt><dd>radio on · off</dd>
+          <dt><kbd>[</kbd><kbd>]</kbd></dt><dd>back · on, through your own tracks</dd>
           <dt><kbd>g</kbd></dt><dd>your museum</dd>
           <dt><kbd>p</kbd><kbd>b</kbd><kbd>,</kbd></dt><dd>playlists · badges · settings</dd>
           <dt><kbd>esc</kbd></dt><dd>close this panel</dd>
@@ -524,7 +638,12 @@ export class UI {
       </section>
       <section class="sect">
         <h3 class="sect__head">Sources</h3>
-        <p class="sect__note">Pictures: the Art Institute of Chicago, the Metropolitan Museum of Art, and the Cleveland Museum of Art, through their open APIs — public-domain and CC0 works only. Sound: SomaFM and the Radio Browser index. Nothing you do here leaves your browser.</p>
+        <p class="sect__note">Pictures: the Art Institute of Chicago, the Metropolitan Museum of Art, the
+          Cleveland Museum of Art, the Victoria and Albert Museum, Statens Museum for Kunst, Wikidata and
+          Wikimedia Commons, through their open APIs — public-domain, CC0 and freely licensed works only.
+          Where a picture is under a Creative Commons licence, the licence is named on its label.
+          Sound: SomaFM, the Radio Browser index, and whatever you bring yourself. Nothing you do here
+          leaves your browser.</p>
         <button class="row" id="wipe"><i class="row__dot"></i><span class="row__text">
           <span class="row__name">Forget everything</span>
           <span class="row__note">Clears the museum, badges, statistics, cached pictures and settings.</span></span></button>
@@ -585,6 +704,8 @@ export class UI {
       this.on.nextArt?.();
     };
     E.sound.onclick = e => (e.shiftKey ? this.toggleDrawer('sound') : this.on.toggleRadio?.());
+    E.npPrev.onclick = () => this.on.skipTrack?.(-1);
+    E.npNext.onclick = () => this.on.skipTrack?.(1);
     E.sound.oncontextmenu = e => { e.preventDefault(); this.toggleDrawer('sound'); };
     $('#drawer-close').onclick = () => this.closeDrawer();
     E.scrim.onclick = () => this.closeDrawer();
@@ -596,13 +717,18 @@ export class UI {
     E.drawer.addEventListener('click', e => {
       const pl = e.target.closest('[data-playlist]');
       if (pl) { this.on.playlist?.(pl.dataset.playlist); return; }
+      const drop = e.target.closest('[data-drop]');
+      if (drop) { dropMine(drop.dataset.drop); this._ownList(); return; }
       const st = e.target.closest('[data-station]');
       if (st) {
-        const adhoc = st.dataset.adhoc ? JSON.parse(st.dataset.adhoc) : null;
-        this.on.station?.(st.dataset.station, adhoc);
+        const adhoc = st.dataset.adhoc || st.dataset.own;
+        this.on.station?.(st.dataset.station, adhoc ? JSON.parse(adhoc) : null);
         $$('[data-station]', E.drawer).forEach(r => r.classList.toggle('is-on', r === st));
+        $$('.row--own', E.drawer).forEach(r => r.classList.toggle('is-on', r.contains(st)));
         return;
       }
+      if (e.target.closest('#own-pick')) { $('#own-files')?.click(); return; }
+      if (e.target.closest('#own-add')) { this._addOwn(); return; }
       const work = e.target.closest('[data-work]');
       if (work) {
         const w = this._works?.[+work.dataset.work];
@@ -665,6 +791,8 @@ export class UI {
       else if (k === 'r') this.on.reset?.();
       else if (k === 'n') this.on.nextArt?.();
       else if (k === 'm') this.on.toggleRadio?.();
+      else if (k === '[') this.on.skipTrack?.(-1);
+      else if (k === ']') this.on.skipTrack?.(1);
       else if (k === 'b') this.toggleDrawer('badges');
       else if (k === 'g') ($('#museum').hidden ? this.openMuseum() : this.closeMuseum());
       else if (k === 'p') this.toggleDrawer('playlists');
@@ -682,6 +810,9 @@ export class UI {
     const show = radio.playing && (radio.track || radio.station?.name);
     this.el.np.hidden = !show;
     if (show) this.el.npText.textContent = radio.track || radio.station.name;
+    // you can move through your own records; you cannot move through a radio station
+    const queued = show && radio.isQueue && radio.station.tracks.length > 1;
+    this.el.npPrev.hidden = this.el.npNext.hidden = !queued;
   }
 
   setGrain(on) { this.el.grain.style.display = on ? '' : 'none'; }

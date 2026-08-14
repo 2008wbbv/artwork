@@ -33,12 +33,13 @@ Then open `http://localhost:8000`. To publish, drop it on any static host — th
 
 ## What's in it
 
-- **38 playlists** by movement, artist, place, museum and curator's pick — Impressionism, the Dutch Golden Age, Ukiyo-e, Vienna 1900, Monet, Hokusai, Vermeer, Venice, Paris, The Sea, The North, and the Rijksmuseum, Prado, Louvre and National Gallery by way of Wikidata.
+- **39 playlists** by movement, artist, place, museum and curator's pick — Impressionism, the Dutch Golden Age, Ukiyo-e, Vienna 1900, Monet, Hokusai, Vermeer, Venice, Paris, The Sea, The North, and the Rijksmuseum, Prado, Louvre and National Gallery by way of Wikidata.
 - **A wall label** for every picture: title, hand, date, medium, the museum's own note, and the gallery it's hanging in right now. Hover it for the credit line.
-- **A museum of your own.** Every picture you sit through is hung on a wall you can walk along, in rooms by century with a *Lately* wall and one for the hands you keep coming back to. It's hung like a real gallery: six frames — gilt, oak, ebony, plaster, ornate, slim brass — dealt out by the picture's own key so a work always comes back in the same frame; mounts on works on paper and none on oils; sizes and heights that vary along the wall; a light pool over each one, a doorway through to the next room, and a bench in the middle if you want to sit. Nothing is stored but the seed — each frame is *repainted* from forty bytes, stroke for stroke, exactly as you first watched it go down. Hover for the label and when you painted it; click to hang it again.
+- **A museum of your own.** Every picture you sit through is hung on a wall you can walk along, in rooms by century with a *Lately* wall and one for the hands you keep coming back to. It's hung like a real gallery, salon-style: twelve frames — gilt, ornate, swept rococo, Florentine cassetta, oak, walnut, ebony, tortoiseshell, silver leaf, plaster, limewash and a modern shadow box — chosen the way a framer would, by what the picture is and roughly when it was made, then varied within that by the picture's own key so a work always comes back in the same frame. Mounts on works on paper and none on oils. Pictures stack two and three high and crowd into the same horizontal run, columns leaning into their neighbours — but the wall is measured after it's laid out and nothing is ever allowed closer than a hand's breadth to the frame beside it. A light pool over each one, an archway through to the next room with the light spilling out of it, and a bench in the middle if you want to sit. Nothing is stored but the seed — each frame is *repainted* from forty bytes, stroke for stroke, exactly as you first watched it go down. Hover for the label and when you painted it; click to hang it again.
 - **One line about what you're doing.** Type it before you start and it sits under the clock, then goes into the record — so the museum reads *Bruegel, 25 minutes, "finishing the deck"* rather than just a date.
 - **The hand behind it.** Click the artist and you get a short life off Wikipedia — with their portrait, often a self-portrait, in a gilt frame — and everything else of theirs across the collections. Click any of those and it goes up on the wall.
-- **Radio**, from SomaFM and the Radio Browser index, with what's playing right now. Ducks under the chime between intervals.
+- **Radio**, from SomaFM and the Radio Browser index — including the stations that play nothing but game soundtracks and chiptune — with what's playing right now. Ducks under the chime between intervals.
+- **Or bring your own.** Paste a stream address and it's remembered; or pick audio files off your own machine and they play through as a stack of records, with `[` and `]` to move between them. Files are never uploaded anywhere — the browser hands out a URL that dies with the tab, which is also why they have to be picked again next session.
 - **23 badges**, awarded only for pictures you actually sat through — ten German painters, twenty Venices, five works by one hand, seven days running.
 - **Two ways to look.** *Fill* bleeds the picture off every edge; *Hang* fits the whole thing on a lit wall, which portrait paintings prefer.
 
@@ -52,7 +53,7 @@ Then open `http://localhost:8000`. To publish, drop it on any static host — th
 
 ## Pictures
 
-Six open sources. No keys, no accounts, no proxy — every request goes straight from your browser to the collection, and all of them send permissive CORS headers.
+Seven open sources. No keys, no accounts, no proxy — every request goes straight from your browser to the collection, and all of them send permissive CORS headers.
 
 | Collection | Endpoint | Filter |
 |---|---|---|
@@ -62,8 +63,11 @@ Six open sources. No keys, no accounts, no proxy — every request goes straight
 | [Victoria and Albert Museum](https://developers.vam.ac.uk/) | `api.vam.ac.uk` | made before 1920 |
 | [SMK — National Gallery of Denmark](https://www.smk.dk/en/article/smk-api/) | `api.smk.dk` | `public_domain` only |
 | [Wikidata · the sum of all paintings](https://www.wikidata.org/wiki/Wikidata:WikiProject_sum_of_all_paintings) | `query.wikidata.org` + Wikimedia Commons | painted before 1900 |
+| [Wikimedia Commons](https://commons.wikimedia.org/wiki/Commons:API) | `commons.wikimedia.org` | freely licensed, credited to the painter |
 
 Wikidata is what reaches the houses that have no API of their own — the Rijksmuseum, the Prado, the Louvre, the National Gallery, the Uffizi, the Hermitage, the Mauritshuis.
+
+Commons is the only one of the seven that holds anything made this century, because it's the only one where a living painter can put their own work up. That's what makes **The Minecraft Paintings** possible: Kristoffer Zetterstrand painted the canvases the game's paintings were cut from, and uploaded them himself under CC BY-SA. The shelf shows the originals, full size — *Wanderer*, *Graham*, *Bonjour Monsieur Courbet* and *The Stage Is Set* are the four whose in-game names are documented beyond doubt, and the label says so. The licence wants attribution, so the licence and a link to the file page go on the label beside the picture rather than in a credits file somewhere. The game's own 16×16 textures are not here and won't be — they aren't free, and the paintings they came from are better anyway.
 
 A seventh, **Harvard Art Museums**, is wired up but dormant: it wants a free read-only key. Put one in `js/keys.js` and its shelf appears in the drawer by itself. Nothing else in the app refers to it while that field is empty.
 
@@ -95,7 +99,7 @@ Responses are cached for the best part of a day. Pictures start from the museum'
 ```
 js/painter.js      the stroke engine
 js/gallery.js      viewing order, image loading, caching
-js/sources.js      six collection adapters, normalised to one shape
+js/sources.js      seven collection adapters, normalised to one shape
 js/artist.js       who painted it, and what else of theirs is hanging
 js/museum.js       what you've painted, and how it's hung
 js/notify.js       the desktop note, off unless asked for
@@ -113,6 +117,7 @@ js/ui.js           panels, labels, toasts, keys
 - The museums above, for putting their collections in the public domain and then publishing an API for them.
 - [Wikidata and Wikimedia Commons](https://www.wikidata.org/wiki/Wikidata:WikiProject_sum_of_all_paintings), for everywhere else, and [Wikipedia](https://en.wikipedia.org) for the lives.
 - [SomaFM](https://somafm.com) — listener-supported, advert-free, hand-programmed. If you leave it on all day, [chip in](https://somafm.com/support/).
+- [Kristoffer Zetterstrand](https://commons.wikimedia.org/wiki/Category:Kristoffer_Zetterstrand), for putting his paintings up under a licence that let them be shown here.
 - [Radio Browser](https://www.radio-browser.info/), a community index of everything else.
 - Type is [Plus Jakarta Sans](https://fonts.google.com/specimen/Plus+Jakarta+Sans) and [Instrument Serif](https://fonts.google.com/specimen/Instrument+Serif). The WeWork wordmark is Apercu, which is licensed and can't ship here — Plus Jakarta is the closest free relative. If you own Apercu, put it first in `--sans` at the top of `css/app.css` and everything follows.
 

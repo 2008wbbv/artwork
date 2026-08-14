@@ -227,6 +227,7 @@ ui.on = {
     radio.play(st);
   },
   volume(v) { radio.setVolume(v); persist(); },
+  skipTrack(by) { radio.skip(by); },
   doing(text) { settings.doing = text; persist(); },
   fit(mode) { settings.fit = mode; persist(); painter.setFit(mode); },
   wipe() {
@@ -274,7 +275,7 @@ radio.onchange = (r, err) => {
 };
 
 /* --------------------------------------------------- boot */
-window.addEventListener('resize', debounce(() => painter.resize(), 220));
+window.addEventListener('resize', debounce(() => { painter.resize(); ui.relayout(); }, 220));
 window.addEventListener('orientationchange', () => setTimeout(() => painter.resize(), 320));
 window.addEventListener('online', () => {
   if (!gallery.items.length) choosePlaylist(settings.playlist, { announce: false });

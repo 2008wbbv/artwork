@@ -96,8 +96,29 @@ export function rooms() {
    the same painting comes back in the same frame, in the same
    spot on the wall, every time you visit.
    ------------------------------------------------------------ */
-const FRAMES = ['gilt', 'oak', 'ebony', 'plaster', 'ornate', 'slim'];
+/* Frames are chosen the way a framer would: by what the picture is
+   and roughly when it was made, then varied within that. A 1640 oil
+   gets a carved and gilded thing; a drawing gets a mount and a plain
+   moulding; a 1910 canvas gets something the picture doesn't have to
+   argue with. */
+const FRAME_POOLS = {
+  paper:  ['plaster', 'limewash', 'slim', 'silver'],
+  early:  ['ornate', 'swept', 'tortoise', 'cassetta'],          // before 1700
+  middle: ['gilt', 'cassetta', 'walnut', 'ornate', 'gilt'],     // 1700 – 1850
+  late:   ['oak', 'ebony', 'slim', 'gilt', 'walnut', 'silver'], // 1850 – 1900
+  modern: ['box', 'ebony', 'slim', 'limewash', 'oak'],          // after 1900
+};
 const ON_PAPER = /paper|print|watercolo|drawing|etch|engrav|lithograph|pastel|gouache|chalk|ink|charcoal|woodblock/i;
+
+function pool(h, paper) {
+  if (paper) return FRAME_POOLS.paper;
+  const y = h.a.year || (h.a.century ? h.a.century * 100 - 50 : 0);
+  if (!y) return FRAME_POOLS.middle;
+  if (y < 1700) return FRAME_POOLS.early;
+  if (y < 1850) return FRAME_POOLS.middle;
+  if (y < 1900) return FRAME_POOLS.late;
+  return FRAME_POOLS.modern;
+}
 
 function hash(s) {
   let h = 2166136261;
@@ -109,7 +130,7 @@ export function style(h) {
   const n = hash(h.k);
   const paper = ON_PAPER.test(h.a.medium || '');
   return {
-    frame: paper && n % 7 === 0 ? 'plaster' : FRAMES[n % FRAMES.length],
+    frame: (p => p[(n >>> 16) % p.length])(pool(h, paper)),
     mat: paper,                                    // works on paper get a mount, oils don't
     size: [.7, .8, .9, 1, 1, 1.12, 1.16, .84][(n >>> 4) % 8],
     drop: [-32, -16, 0, 14, 28, -10, 22, -24][(n >>> 8) % 8],

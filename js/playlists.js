@@ -12,6 +12,12 @@ export const GROUPS = ['Curated', 'Movements', 'Artists', 'Places', 'Museums'];
 
 export const PLAYLISTS = [
   /* ---------------------------------------------------- Curated */
+  { id:'minecraft', group:'Curated', name:'The Minecraft Paintings',
+    note:'Kristoffer Zetterstrand painted the canvases that became the paintings in Minecraft. These are the originals, full size, put up by the painter himself.',
+    tags:['minecraft'], queries:[
+      { src:'com', artist:'Kristoffer Zetterstrand', limit:40 },
+    ]},
+
   { id:'the-ten', group:'Curated', name:'The Ten', note:'The pictures the curators themselves put a star beside.',
     tags:['highlight'], queries:[
       { src:'aic', term:{ field:'is_boosted', value:true }, limit:100 },

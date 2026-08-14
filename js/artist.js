@@ -96,6 +96,7 @@ export async function worksBy(name, exceptKey = '') {
     { src: 'cma', params: { artists: name }, limit: 16 },
     { src: 'vam', params: { q: name }, limit: 20 },
     { src: 'smk', params: { keys: name }, limit: 16 },
+    { src: 'com', artist: name, limit: 24 },        // living painters, where they've licensed it themselves
   ];
   const last = surname(name);
   const parts = await pool(specs, 3, spec => runQuery(spec).catch(() => []));
