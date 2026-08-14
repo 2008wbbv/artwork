@@ -66,6 +66,8 @@ export class UI {
   setState(timer) {
     this.el.shell.dataset.state = timer.state;
     this.el.shell.dataset.phase = timer.phase;
+    // an interval under way belongs to the picture, not to the clock
+    this.el.shell.dataset.mini = timer.state === 'idle' ? '0' : '1';
     this.el.start.textContent =
       timer.state === 'running' ? 'Pause' :
       timer.state === 'paused' ? 'Resume' :

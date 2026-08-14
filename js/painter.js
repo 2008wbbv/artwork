@@ -20,11 +20,11 @@ const MAX_PIXELS = 5.2e6;
 /* size fraction of the short edge · which blur level to sample ·
    how much of the interval this layer owns · how picky it is about detail */
 const LAYERS = [
-  { t0:0,   t1:.09, size:.120, mip:3, over:2.0, elong:2.1, wide:.56, alpha:[.42,.62], detail:0,   halo:.38 },
-  { t0:.09, t1:.32, size:.056, mip:2, over:1.7, elong:2.0, wide:.56, alpha:[.52,.74], detail:0,   halo:.26 },
-  { t0:.32, t1:.60, size:.027, mip:1, over:1.5, elong:1.9, wide:.54, alpha:[.62,.84], detail:.12, halo:0   },
-  { t0:.60, t1:.85, size:.0132,mip:0, over:1.3, elong:1.9, wide:.50, alpha:[.60,.86], detail:.44, halo:0   },
-  { t0:.85, t1:1,   size:.0068,mip:0, over:1.0, elong:1.9, wide:.48, alpha:[.55,.82], detail:.70, halo:0   },
+  { t0:0,   t1:.09, size:.120, mip:3, over:2.4, elong:2.1, wide:.84, alpha:[.42,.62], detail:0,   segs:7, bristle:3, blunt:[.58,.78], halo:.34 },
+  { t0:.09, t1:.32, size:.056, mip:2, over:1.9, elong:2.3, wide:.70, alpha:[.52,.74], detail:0,   segs:6, bristle:3, blunt:[.44,.64], halo:.22 },
+  { t0:.32, t1:.60, size:.027, mip:1, over:1.6, elong:2.4, wide:.58, alpha:[.62,.84], detail:.12, segs:5, bristle:2, blunt:[.32,.52], halo:0   },
+  { t0:.60, t1:.85, size:.0132,mip:0, over:1.3, elong:2.3, wide:.52, alpha:[.60,.86], detail:.44, segs:4, bristle:2, blunt:[.24,.44], halo:0   },
+  { t0:.85, t1:1,   size:.0068,mip:0, over:1.0, elong:2.2, wide:.48, alpha:[.55,.82], detail:.70, segs:3, bristle:1, blunt:[.18,.38], halo:0   },
 ];
 
 export class Painter {
@@ -53,6 +53,9 @@ export class Painter {
     this.glazeMax = .55;
     this.fit = 'fill';                 // 'fill' bleeds off the edges · 'frame' hangs it on a wall
     this.wall = '#0f0e0d';
+    this._min = 900;                   // short edge, for the flow field
+    this._px = new Float32Array(64);   // scratch: the path a single stroke takes
+    this._py = new Float32Array(64);
     this.setSize();
   }
 
@@ -304,6 +307,7 @@ export class Painter {
     const framed = this.fit === 'frame';
     const field = framed ? rect : { x: 0, y: 0, w: this.W, h: this.H };
     const min = framed ? Math.min(rect.w, rect.h) : Math.min(this.W, this.H);
+    this._min = min;
     const xs = [], ys = [], an = [], sz = [], al = [], lm = [], lay = [];
     const bounds = [];
     const upscale = rect.w / (this.img?.naturalWidth || rect.w);
@@ -341,7 +345,7 @@ export class Painter {
         }
         if (L.detail && m < .5 && rnd() > 1 - L.detail) continue;   // spend the fine work on edges
         xs.push(x); ys.push(y);
-        an.push(a + (rnd() - .5) * (this.grad ? .34 : .9));
+        an.push(a + (rnd() - .5) * lerp(.86, .3, clamp(m, 0, 1)));
         sz.push(cell * lerp(.62, 1.62, Math.pow(rnd(), 1.7)));
         al.push(lerp(L.alpha[0], L.alpha[1], rnd()));
         lm.push(lerp(1.16, .66, clamp(m, 0, 1)));
@@ -383,20 +387,109 @@ export class Painter {
   }
 
   /* ------------------------------------------------- painting */
+  /** the direction the brush is travelling at this point, following the form
+      without ever doubling back on itself */
+  _heading(x, y, prev) {
+    const G = this.grad;
+    let a;
+    if (G) {
+      const R = this.plan.rect;
+      const u = clamp((x - R.x) / R.w, 0, .999), v = clamp((y - R.y) / R.h, 0, .999);
+      const gi = ((v * G.h) | 0) * G.w + ((u * G.w) | 0);
+      a = G.mag[gi] < .28 ? flow(x, y, this._min) : G.ang[gi];
+    } else {
+      a = flow(x, y, this._min);
+    }
+    // an edge direction has no sign, so pick the reading nearest the current heading
+    while (a - prev > Math.PI / 2) a -= Math.PI;
+    while (a - prev < -Math.PI / 2) a += Math.PI;
+    return prev + (a - prev) * .6;
+  }
+
+  /** lay the stroke's path into the scratch buffers, returns the segment count */
+  _path(x, y, ang, len, segs) {
+    const px = this._px, py = this._py;
+    const step = len / segs;
+    let a = ang;
+    let cx = x - Math.cos(ang) * len * .5;
+    let cy = y - Math.sin(ang) * len * .5;
+    for (let k = 0; k <= segs; k++) {
+      px[k] = cx; py[k] = cy;
+      a = this._heading(cx, cy, a);
+      cx += Math.cos(a) * step;
+      cy += Math.sin(a) * step;
+    }
+    return segs;
+  }
+
+  /** the outline of a loaded brush: fat through the belly, tapering to the tips */
+  _outline(g, segs, wid, blunt) {
+    const px = this._px, py = this._py;
+    const half = k => {
+      const t = k / segs;
+      return wid * .5 * (blunt + (1 - blunt) * Math.pow(Math.sin(Math.PI * t), .55));
+    };
+    const nx = [], ny = [];
+    for (let k = 0; k <= segs; k++) {
+      const a = k === 0 ? Math.atan2(py[1] - py[0], px[1] - px[0])
+        : Math.atan2(py[k] - py[k - 1], px[k] - px[k - 1]);
+      nx[k] = -Math.sin(a) * half(k);
+      ny[k] = Math.cos(a) * half(k);
+    }
+    // through midpoints with quadratics, so the edge of the mark curves rather than facets
+    g.beginPath();
+    g.moveTo(px[0] + nx[0], py[0] + ny[0]);
+    for (let k = 1; k < segs; k++)
+      g.quadraticCurveTo(px[k] + nx[k], py[k] + ny[k],
+        (px[k] + nx[k] + px[k + 1] + nx[k + 1]) / 2, (py[k] + ny[k] + py[k + 1] + ny[k + 1]) / 2);
+    g.lineTo(px[segs] + nx[segs], py[segs] + ny[segs]);
+    g.lineTo(px[segs] - nx[segs], py[segs] - ny[segs]);
+    for (let k = segs - 1; k > 0; k--)
+      g.quadraticCurveTo(px[k] - nx[k], py[k] - ny[k],
+        (px[k] - nx[k] + px[k - 1] - nx[k - 1]) / 2, (py[k] - ny[k] + py[k - 1] - ny[k - 1]) / 2);
+    g.closePath();
+  }
+
+  /** the hairs the brush drags through the wet paint */
+  _bristles(g, segs, wid, n, r, gg, b, alpha, seed) {
+    const px = this._px, py = this._py;
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+    g.lineWidth = Math.max(.6, wid * .13);
+    for (let h = 0; h < n; h++) {
+      const off = ((h + 1) / (n + 1) - .5) * wid * .78;
+      const k = 1 + ((seed + h * 7) % 5) * .045;          // each hair carries slightly different paint
+      const skip = ((seed + h * 3) % 4) === 0 ? 1 : 0;    // and some run dry before the end
+      g.globalAlpha = alpha * .42;
+      g.strokeStyle = `rgb(${clamp(r * k, 0, 255) | 0},${clamp(gg * k, 0, 255) | 0},${clamp(b * k, 0, 255) | 0})`;
+      g.beginPath();
+      for (let j = skip; j <= segs - skip; j++) {
+        const a = Math.atan2(py[Math.min(j + 1, segs)] - py[Math.max(j - 1, 0)],
+                             px[Math.min(j + 1, segs)] - px[Math.max(j - 1, 0)]);
+        const taper = Math.pow(Math.sin(Math.PI * (j / segs)), .4);
+        const x = px[j] - Math.sin(a) * off * taper;
+        const y = py[j] + Math.cos(a) * off * taper;
+        j === skip ? g.moveTo(x, y) : g.lineTo(x, y);
+      }
+      g.stroke();
+    }
+  }
+
   _stroke(i) {
     const P = this.plan, g = this.ctx;
     const L = P.bounds[P.lay[i]];
-    const x = P.xs[i], y = P.ys[i], ang = P.an[i], s = P.sz[i];
-    const len = s * L.elong * P.lm[i] * .5, wid = s * L.wide * .5;
+    const x = P.xs[i], y = P.ys[i], s = P.sz[i];
+    const len = s * L.elong * P.lm[i];
+    const wid = s * L.wide;
+    const segs = this._path(x, y, P.an[i], len, L.segs);
+    const blunt = lerp(L.blunt[0], L.blunt[1], (i % 5) / 4);   // a broad brush lays bands, a fine one points
 
-    if (this.tainted) {                              // no pixel access: reveal through the shape
+    if (this.tainted) {                                   // no pixel access: reveal through the shape
       g.save();
-      g.beginPath();
-      g.ellipse(x, y, len, wid, ang, 0, TAU);
+      this._outline(g, segs, wid, blunt);
       g.clip();
       g.globalAlpha = P.al[i];
-      const m = this.mips[L.mip];
-      g.drawImage(m, P.rect.x, P.rect.y, P.rect.w, P.rect.h);
+      g.drawImage(this.mips[L.mip], P.rect.x, P.rect.y, P.rect.w, P.rect.h);
       g.restore();
       g.globalAlpha = 1;
       return;
@@ -405,33 +498,26 @@ export class Painter {
     const im = this.data[L.mip];
     const u = clamp((x - P.rect.x) / P.rect.w, 0, .999);
     const v = clamp((y - P.rect.y) / P.rect.h, 0, .999);
-    const px = ((v * im.height | 0) * im.width + (u * im.width | 0)) * 4;
+    const px = (((v * im.height) | 0) * im.width + ((u * im.width) | 0)) * 4;
     const d = im.data;
     const jit = (i % 7 - 3) * 2.2;
     const r = clamp(d[px] + jit, 0, 255) | 0;
     const gg = clamp(d[px + 1] + jit * .8, 0, 255) | 0;
     const b = clamp(d[px + 2] - jit * .6, 0, 255) | 0;
+    const paint = `rgb(${r},${gg},${b})`;
 
-    g.fillStyle = `rgb(${r},${gg},${b})`;
-    if (L.halo) {                                    // soft shoulder, so the broad passages read as wash
+    if (L.halo) {                                         // the broad passages sit in a wash
       g.globalAlpha = P.al[i] * L.halo;
-      g.beginPath();
-      g.ellipse(x, y, len * 1.3, wid * 1.34, ang, 0, TAU);
+      g.fillStyle = paint;
+      this._outline(g, segs, wid * 1.5, .55);
       g.fill();
     }
     g.globalAlpha = P.al[i];
-    g.beginPath();
-    g.ellipse(x, y, len, wid, ang, 0, TAU);
+    g.fillStyle = paint;
+    this._outline(g, segs, wid, blunt);
     g.fill();
 
-    if (L.mip < 2 && i % 6 === 0) {                  // an occasional bristle catching the light
-      const k = 1 + ((i % 5) - 2) * .055;
-      g.globalAlpha = P.al[i] * .45;
-      g.fillStyle = `rgb(${clamp(r * k, 0, 255) | 0},${clamp(gg * k, 0, 255) | 0},${clamp(b * k, 0, 255) | 0})`;
-      g.beginPath();
-      g.ellipse(x + Math.cos(ang) * len * .18, y + Math.sin(ang) * len * .18, len * .62, wid * .34, ang, 0, TAU);
-      g.fill();
-    }
+    if (L.bristle && wid > 5) this._bristles(g, segs, wid, L.bristle, r, gg, b, P.al[i], i);
     g.globalAlpha = 1;
   }
 

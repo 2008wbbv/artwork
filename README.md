@@ -13,7 +13,7 @@
 
 </div>
 
-Twenty-five minutes of focus is twenty-five minutes of brushwork. A toned ground goes down first, then a thin lay-in of the composition, then five passes: broad wash strokes sampled from a heavily blurred reduction of the picture, down to fine detail concentrated on the edges. Every stroke follows the local image gradient — the way a brush actually moves — and shortens where the picture has detail. The last few minutes glaze the real file on in thin increments, so it resolves exactly as the clock reaches zero.
+Twenty-five minutes of focus is twenty-five minutes of brushwork. A toned ground goes down first, then a thin lay-in of the composition, then five passes: broad blocked-in bands off a heavily blurred reduction of the picture, down to fine detail concentrated on the edges. Each mark is a real brush stroke — it curves along the local image gradient the way a loaded brush actually travels, tapers at both ends, and drags a few bristles of slightly different paint behind it. Broad brushes lay bands; fine ones come to a point. The last few minutes glaze the real file on in thin increments, so the picture resolves exactly as the clock reaches zero.
 
 <img src="docs/stages.jpg" alt="the same painting at four stages of completion" width="100%">
 
@@ -43,7 +43,7 @@ Then open `http://localhost:8000`. To publish, drop it on any static host — th
 
   <sup>Van Gogh's *Madame Roulin and Her Baby*, filling the screen and hung on the wall.</sup>
 
-- **An interface that gets out of the way.** After a few still seconds everything but the clock fades. The brightness under each cluster of type is measured live, and only that patch of picture is darkened, so the text never fights the painting.
+- **An interface that gets out of the way.** The clock sits in the middle of the screen until you start; then it steps aside into the corner and leaves the wall to the picture. After a few still seconds the rest fades too. The brightness under each cluster of type is measured live, and only that patch of picture is darkened, so the text never fights the painting.
 
 <img src="docs/playlists.jpg" alt="the playlist drawer" width="49%"> <img src="docs/badges.jpg" alt="the badge shelf" width="49%">
 
