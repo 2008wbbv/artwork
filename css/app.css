@@ -515,12 +515,12 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
 .lnk:hover{text-decoration-color:var(--accent)}
 /* he stands in the corner of his own section */
 .steve{
-  position:absolute;right:.1rem;bottom:.4rem;width:48px;height:66px;
-  opacity:.5;transition:opacity var(--mid) var(--ease);
+  position:absolute;right:0;bottom:.4rem;width:58px;height:66px;
+  opacity:.55;transition:opacity var(--mid) var(--ease);
 }
 .sect--mc:hover .steve{opacity:.9}
 .steve svg{width:100%;height:100%;overflow:visible}
-.steve__arm{transform-origin:12px 13px;animation:swing 1.9s var(--ease) infinite}
+.steve__arm{transform-origin:15px 12px;animation:swing 1.9s var(--ease) infinite}
 .steve__block{animation:knock 1.9s var(--ease) infinite}
 .steve__body{animation:bob 1.9s var(--ease) infinite}
 /* the pick hangs down, so anticlockwise is the swing that reaches the block */

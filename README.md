@@ -68,7 +68,11 @@ Seven open sources. No keys, no accounts, no proxy — every request goes straig
 
 Wikidata is what reaches the houses that have no API of their own — the Rijksmuseum, the Prado, the Louvre, the National Gallery, the Uffizi, the Hermitage, the Mauritshuis.
 
-Commons is the only one of the seven that holds anything made this century, because it's the only one where a living painter can put their own work up. That's what makes **The Minecraft Paintings** possible: Kristoffer Zetterstrand painted the canvases the game's paintings were cut from, and uploaded them himself under CC BY-SA. The shelf shows the originals, full size — *Wanderer*, *Graham*, *Bonjour Monsieur Courbet* and *The Stage Is Set* are the four whose in-game names are documented beyond doubt, and the label says so. The licence wants attribution, so the licence and a link to the file page go on the label beside the picture rather than in a credits file somewhere. The game's own 16×16 textures are not here and won't be — they aren't free, and the paintings they came from are better anyway.
+Commons is the only one of the seven that holds anything made this century, because it's the only one where a living painter can put their own work up. That's what makes **The Minecraft Paintings** possible: Kristoffer Zetterstrand painted the canvases the game's paintings were cut from, and uploaded ten of them himself under CC BY-SA. The shelf shows the originals, full size, at a scale the 16×16 textures can't hint at — pixel figures standing about in oil-painted niches, Courbet's *The Meeting* staged on a plinth, a Sánchez Cotán still life with a small blocky visitor.
+
+The shelf doesn't claim which in-game painting any one canvas became. The file names are the painter's own and don't line up with the game's the way you'd assume — the one he titled *Graham* is the Cotán still life, not a portrait — and the textures can't be checked against without redistributing them. So it says whose paintings these are and leaves the matching to whoever recognises it.
+
+The licence wants attribution, so the licence and a link to the file page go on the label beside the picture rather than in a credits file somewhere. The game's own textures and skins are not here and won't be: they aren't free.
 
 A seventh, **Harvard Art Museums**, is wired up but dormant: it wants a free read-only key. Put one in `js/keys.js` and its shelf appears in the drawer by itself. Nothing else in the app refers to it while that field is empty.
 

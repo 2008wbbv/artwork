@@ -420,18 +420,14 @@ async function harSearch({ params = {}, limit = 40 }, signal) {
    anything made this century, which is the only way to reach the
    canvases behind Minecraft's paintings: Kristoffer Zetterstrand
    uploaded them himself, CC BY-SA. The licence wants attribution, so
-   it goes on the label next to the picture, not in a credits file. */
+   it goes on the label next to the picture, not in a credits file.
 
-/* The ones cut down to 16×16 and hung in the game. Only the four
-   that are documented beyond doubt — the rest of his canvases are
-   here on their own merit, not on a guess about which block they
-   ended up on. */
-const IN_GAME = {
-  'wanderer': 'Wanderer',
-  'graham': 'Graham',
-  'bonjour monsieur courbet': 'Courbet',
-  'the stage is set': 'Stage',
-};
+   No claim is made here about which in-game painting any one canvas
+   became. The file names are the painter's own and don't line up with
+   the game's names the way you'd expect — the one he called "Graham"
+   is a still life after Sánchez Cotán — and the textures themselves
+   can't be checked from here. So the shelf says whose paintings these
+   are and leaves the matching to whoever recognises it. */
 
 const COMMONS_FILE = 'https://commons.wikimedia.org/wiki/Special:FilePath/';
 
@@ -466,7 +462,6 @@ function fromCommons(page, artist) {
   const title = commonsTitle(page.title, artist);
   if (!title) return null;
   const src = COMMONS_FILE + encodeURIComponent(file);
-  const game = IN_GAME[title.toLowerCase()];
   return finish({
     key: 'com:' + page.pageid,
     src: 'com',
@@ -487,9 +482,7 @@ function fromCommons(page, artist) {
     classification: 'Painting',
     department: '',
     gallery: '',
-    note: game
-      ? `Cut down to sixteen pixels a side, this hangs in Minecraft as “${game}”.`
-      : describe(plain(m.ImageDescription?.value, 240), plain(m.Medium?.value)),
+    note: describe(plain(m.ImageDescription?.value, 240), plain(m.Medium?.value)),
     alt: [title, artist].filter(Boolean).join(', '),
     url: 'https://commons.wikimedia.org/wiki/File:' + encodeURIComponent(file).replace(/%20/g, '_'),
     lqip: '',

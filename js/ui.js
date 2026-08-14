@@ -10,39 +10,52 @@ import { rooms, count, when, style, columns } from './museum.js';
 import { Painter } from './painter.js';
 import { loadImage } from './sources.js';
 
-/* A small blocky fellow who stands in the Minecraft section, drawn here
-   in rectangles rather than borrowed from anywhere. He swings a pick at
-   a block that never quite breaks. */
+/* A small blocky fellow who stands in the Minecraft section. Drawn
+   here in rectangles rather than borrowed: the game's own skin file
+   is Mojang's, and this repository is public. The proportions are the
+   classic ones — an eight-wide head, an eight-wide body, four-wide
+   limbs, thirty-two tall — but every colour is chosen here. */
 const STEVE = `<span class="steve" aria-hidden="true">
-  <svg viewBox="0 0 24 33" shape-rendering="crispEdges">
+  <svg viewBox="0 0 30 34" shape-rendering="crispEdges">
     <g class="steve__block">
-      <rect x="15" y="24" width="7" height="7" fill="#6b8f43"/>
-      <rect x="15" y="24" width="7" height="2" fill="#7fae51"/>
-      <rect x="15" y="29" width="7" height="2" fill="#576c36"/>
+      <rect x="20" y="25" width="8" height="8" fill="#69893f"/>
+      <rect x="20" y="25" width="8" height="2" fill="#84b055"/>
+      <rect x="20" y="27" width="8" height="1" fill="#74994a"/>
+      <rect x="20" y="31" width="8" height="2" fill="#55702f"/>
     </g>
     <g class="steve__body">
-      <rect x="3"  y="12" width="2" height="6" fill="#2a8079"/>
-      <rect x="3"  y="18" width="2" height="2" fill="#a87953"/>
-      <rect x="4"  y="2"  width="8" height="3" fill="#3a2a1c"/>
-      <rect x="4"  y="5"  width="8" height="7" fill="#b8865f"/>
-      <rect x="4"  y="5"  width="8" height="1" fill="#3a2a1c"/>
-      <rect x="5"  y="7"  width="2" height="2" fill="#f2ece2"/>
-      <rect x="9"  y="7"  width="2" height="2" fill="#f2ece2"/>
-      <rect x="6"  y="7"  width="1" height="2" fill="#3c6b8f"/>
-      <rect x="10" y="7"  width="1" height="2" fill="#3c6b8f"/>
-      <rect x="6"  y="10" width="4" height="1" fill="#8a5f3e"/>
-      <rect x="5"  y="12" width="6" height="7" fill="#2f8f86"/>
-      <rect x="5"  y="19" width="6" height="1" fill="#2b3a68"/>
-      <rect x="5"  y="20" width="3" height="9" fill="#3b4f8a"/>
-      <rect x="8"  y="20" width="3" height="9" fill="#33447a"/>
-      <rect x="5"  y="29" width="6" height="2" fill="#4a4a52"/>
+      <!-- far arm -->
+      <rect x="2"  y="9"  width="3" height="8" fill="#256d67"/>
+      <rect x="2"  y="17" width="3" height="3" fill="#9c6f4a"/>
+      <!-- head -->
+      <rect x="5"  y="1"  width="8" height="4" fill="#33241a"/>
+      <rect x="5"  y="5"  width="8" height="6" fill="#b8865f"/>
+      <rect x="5"  y="5"  width="8" height="1" fill="#3d2b1e"/>
+      <rect x="12" y="5"  width="1" height="6" fill="#a2734f"/>
+      <rect x="6"  y="6"  width="2" height="2" fill="#f0ece5"/>
+      <rect x="9"  y="6"  width="2" height="2" fill="#f0ece5"/>
+      <rect x="7"  y="6"  width="1" height="2" fill="#3f6f93"/>
+      <rect x="10" y="6"  width="1" height="2" fill="#3f6f93"/>
+      <rect x="7"  y="9"  width="4" height="1" fill="#7d5335"/>
+      <rect x="6"  y="9"  width="1" height="1" fill="#8f6140"/>
+      <!-- torso -->
+      <rect x="5"  y="11" width="8" height="8" fill="#2f8f86"/>
+      <rect x="11" y="11" width="2" height="8" fill="#288078"/>
+      <rect x="5"  y="19" width="8" height="2" fill="#2b3a68"/>
+      <!-- legs -->
+      <rect x="5"  y="21" width="4" height="9" fill="#3b4f8a"/>
+      <rect x="9"  y="21" width="4" height="9" fill="#33447a"/>
+      <rect x="5"  y="30" width="8" height="3" fill="#43434c"/>
     </g>
     <g class="steve__arm">
-      <rect x="11" y="12" width="2" height="6" fill="#2f8f86"/>
-      <rect x="11" y="18" width="2" height="2" fill="#b8865f"/>
-      <rect x="12" y="19" width="1" height="7" fill="#6b4b2c"/>
-      <rect x="10" y="25" width="5" height="2" fill="#9aa4ad"/>
-      <rect x="10" y="27" width="5" height="1" fill="#767f88"/>
+      <rect x="13" y="11" width="4" height="7" fill="#2f8f86"/>
+      <rect x="13" y="18" width="4" height="3" fill="#b8865f"/>
+      <rect x="14" y="20" width="2" height="8" fill="#6b4b2c"/>
+      <rect x="14" y="20" width="1" height="8" fill="#7d5a37"/>
+      <rect x="11" y="27" width="8" height="2" fill="#9aa4ad"/>
+      <rect x="11" y="29" width="8" height="1" fill="#79838c"/>
+      <rect x="18" y="26" width="1" height="1" fill="#9aa4ad"/>
+      <rect x="11" y="26" width="1" height="1" fill="#9aa4ad"/>
     </g>
   </svg>
 </span>`;
