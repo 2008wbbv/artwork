@@ -6,7 +6,7 @@ import { shelves, GROUPS } from './playlists.js';
 import { STATIONS, DISCOVER_TAGS, discover } from './radio.js';
 import { BADGES } from './badges.js';
 import { profile, worksBy } from './artist.js';
-import { rooms, count, when } from './museum.js';
+import { rooms, count, when, style, columns } from './museum.js';
 import { Painter } from './painter.js';
 import { loadImage } from './sources.js';
 
@@ -191,17 +191,31 @@ export class UI {
     $('#museum-sub').textContent = count()
       ? `${count()} ${count() === 1 ? 'picture' : 'pictures'} · ${list.length} ${list.length === 1 ? 'room' : 'rooms'}`
       : 'Nothing hung yet';
-    hall.innerHTML = list.length ? list.map(r => `
+    const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV'];
+    const frame = h => {
+      const st = style(h);
+      return `<button class="hung ${st.mat ? '' : 'hung--nomat'}" data-hung="${escapeHtml(h.k)}"
+                data-room="__ROOM__" data-frame="${st.frame}" data-size="${st.size}"
+                style="--drop:${st.drop}px">
+        <span class="hung__frame"><span class="hung__mat"><canvas width="10" height="10"></canvas></span></span>
+        <span class="hung__tag">${escapeHtml(h.a.title)}</span>
+      </button>`;
+    };
+    hall.innerHTML = list.length ? list.map((r, n) => `
       <section class="room">
+        <p class="room__n">Room ${ROMAN[n] || n + 1}</p>
         <h3 class="room__name">${escapeHtml(r.name)}</h3>
         <p class="room__note">${escapeHtml(r.note || '')}</p>
-        <div class="wall">${r.works.map(h => `
-          <button class="hung" data-hung="${escapeHtml(h.k)}" data-room="${escapeHtml(r.id)}">
-            <span class="hung__frame"><span class="hung__mat"><canvas width="10" height="10"></canvas></span></span>
-            <span class="hung__tag">${escapeHtml(h.a.title)}</span>
-          </button>`).join('')}</div>
-      </section>`).join('')
+        <div class="wall">${columns(r.works).map(col =>
+          `<span class="col ${col.length > 1 ? 'col--stacked' : ''}">${col.map(frame).join('')}</span>`
+        ).join('')}</div>
+        <i class="bench" aria-hidden="true"></i>
+        ${n % 3 === 1 ? '<i class="palm" aria-hidden="true"></i>' : ''}
+      </section>`).join('').replace(/__ROOM__/g, () => '')
       : `<p class="museum__empty">The walls are bare. Finish an interval and whatever was on the screen is hung here, repainted from its seed.</p>`;
+    // stamp each frame with the room it hangs in
+    $$('.room', hall).forEach((room, n) =>
+      $$('.hung', room).forEach(el => (el.dataset.room = list[n].id)));
 
     this._hung = new Map(list.flatMap(r => r.works.map(h => [r.id + '|' + h.k, h])));
     box.hidden = false;
@@ -251,7 +265,8 @@ export class UI {
     cv.dataset.done = '1';
     const { img } = await loadImage(h.a.image(520), 11000);
     const wide = img.naturalWidth >= img.naturalHeight;
-    const side = Math.round(Math.min(178, Math.max(120, window.innerHeight * .2)));
+    const scale = +el.dataset.size || 1;
+    const side = Math.round(Math.min(170, Math.max(112, window.innerHeight * .19)) * scale);
     const w = wide ? side : Math.round(side * (img.naturalWidth / img.naturalHeight));
     const ht = wide ? Math.round(side * (img.naturalHeight / img.naturalWidth)) : side;
     const mini = new Painter(cv, { fixed: { w, h: ht }, coarse: true });

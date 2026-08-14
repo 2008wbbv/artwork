@@ -91,6 +91,43 @@ export function rooms() {
   return out;
 }
 
+/* ------------------------------------------------------------
+   How each picture is framed and hung. Stable for a given work —
+   the same painting comes back in the same frame, in the same
+   spot on the wall, every time you visit.
+   ------------------------------------------------------------ */
+const FRAMES = ['gilt', 'oak', 'ebony', 'plaster', 'ornate', 'slim'];
+const ON_PAPER = /paper|print|watercolo|drawing|etch|engrav|lithograph|pastel|gouache|chalk|ink|charcoal|woodblock/i;
+
+function hash(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+
+export function style(h) {
+  const n = hash(h.k);
+  const paper = ON_PAPER.test(h.a.medium || '');
+  return {
+    frame: paper && n % 7 === 0 ? 'plaster' : FRAMES[n % FRAMES.length],
+    mat: paper,                                    // works on paper get a mount, oils don't
+    size: [.74, .86, 1, 1, 1.14, 1.28][(n >> 4) % 6],
+    drop: [-52, -26, 0, 0, 22, 44, -14, 34][(n >> 8) % 8],
+  };
+}
+
+/** a wall isn't a queue: some pictures hang alone, some stack in twos */
+export function columns(works) {
+  const out = [];
+  for (let i = 0; i < works.length;) {
+    const a = works[i], sa = style(a);
+    const b = works[i + 1], sb = b && style(b);
+    const pair = b && sa.size <= .86 && sb.size <= .86;
+    if (pair) { out.push([a, b]); i += 2; } else { out.push([a]); i += 1; }
+  }
+  return out;
+}
+
 /** a line for the label: when you painted it, and for how long */
 export function when(h) {
   const d = new Date(h.at);
