@@ -15,6 +15,12 @@ const SHELF = 12 * 3600e3;
 const slug = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z ]/g, '').trim();
 const surname = s => slug(s).split(' ').filter(w => w.length > 2).pop() || '';
 
+/* Take the thumbnail exactly as it comes. Rewriting the width in the URL —
+   which is the obvious thing to do — earns a 400 from Wikimedia every time,
+   which is why no portrait ever appeared. Their thumbnail is around 320px
+   wide and the frame is smaller than that, so there is nothing to gain. */
+const face = j => j.thumbnail?.source || j.originalimage?.source || '';
+
 /** a page summary: the first paragraph, and a picture of them */
 export async function profile(name) {
   const key = 'artist.' + slug(name);
@@ -28,23 +34,39 @@ export async function profile(name) {
       name: j.title,
       line: j.description || '',
       bio: plain(j.extract, 420),
-      face: j.thumbnail?.source ? j.thumbnail.source.replace(/\/\d+px-/, '/480px-') : '',
+      face: face(j),
       url: j.content_urls?.desktop?.page || `${WIKI}/wiki/${encodeURIComponent(title)}`,
     };
   };
 
+  const clean = name
+    .replace(/^(attributed to|workshop of|circle of|studio of|follower of|manner of|after|school of|copy after)\s+/i, '')
+    .replace(/\s*\([^)]*\)/g, '')
+    .replace(/,\s*(jr|sr|the elder|the younger)\.?$/i, m => m.replace(',', ''))
+    .replace(/\s+/g, ' ').trim();
+
+  // an artist's name is often somebody else's too — Astrid Holm the painter
+  // and Astrid Holm the actress share a page title, and only one of them
+  // painted anything
+  const plausible = p => p && /paint|artist|engrav|sculpt|print|draught|draftsm|illustrat|etch|watercolo/i
+    .test(`${p.line} ${p.bio}`);
+
   let out = null;
-  try { out = await summary(name); } catch { /* try the long way round */ }
+  try { out = await summary(clean); } catch { /* try the long way round */ }
+  if (!out && clean !== name) { try { out = await summary(name); } catch { /* keep going */ } }
+  if (out && !plausible(out)) out = null;
   if (!out) {
     try {
-      const p = new URLSearchParams({ action: 'query', list: 'search', srsearch: `${name} painter artist`,
-        format: 'json', origin: '*', srlimit: '1' });
+      const p = new URLSearchParams({ action: 'query', list: 'search', srsearch: `${clean} painter artist`,
+        format: 'json', origin: '*', srlimit: '3' });
       const j = await fetchJSON(`${WIKI}/w/api.php?${p}`, { timeout: 9000 });
-      const first = j.query?.search?.[0]?.title;
-      if (first) out = await summary(first);
+      for (const hit of (j.query?.search || []).slice(0, 3)) {
+        const cand = await summary(hit.title).catch(() => null);
+        if (plausible(cand)) { out = cand; break; }
+      }
     } catch { /* they may simply not be in there */ }
   }
-  if (out) save('cache.' + key, { t: Date.now(), v: out });
+  save('cache.' + key, { t: Date.now(), v: out });   // remember the misses too, so we stop asking
   return out;
 }
 

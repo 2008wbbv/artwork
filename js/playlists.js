@@ -6,6 +6,8 @@
    rarely says "impressionism" out loud.
    ============================================================ */
 
+import { has } from './keys.js';
+
 export const GROUPS = ['Curated', 'Movements', 'Artists', 'Places', 'Museums'];
 
 export const PLAYLISTS = [
@@ -263,6 +265,11 @@ export const PLAYLISTS = [
       { src:'wd', filter:'VALUES ?coll { wd:Q180788 } ?item wdt:P195 ?coll .', limit:45 },
     ]},
 
+  { id:'museum-harvard', group:'Museums', name:'Harvard Art Museums', note:'Fogg, Busch-Reisinger and Sackler. Needs a free key — see js/keys.js.',
+    tags:['harvard'], needs:'harvard', rand:true, queries:[
+      { src:'har', params:{ classification:'Paintings' }, limit:45 },
+    ]},
+
   { id:'museum-smk', group:'Museums', name:'SMK, Copenhagen', note:'The Danish national gallery, open-licensed and Nordic to the bone.',
     tags:['smk'], rand:true, queries:[
       { src:'smk', params:{ keys:'maleri' }, limit:50 },
@@ -270,3 +277,6 @@ export const PLAYLISTS = [
 ];
 
 export const byId = id => PLAYLISTS.find(p => p.id === id) || PLAYLISTS[0];
+
+/** shelves that need a key nobody has supplied stay out of sight */
+export const shelves = () => PLAYLISTS.filter(p => !p.needs || has(p.needs));

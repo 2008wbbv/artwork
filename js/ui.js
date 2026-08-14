@@ -2,7 +2,7 @@
    Everything you can see and press.
    ============================================================ */
 import { $, $$, escapeHtml, fmtDuration, reducedMotion } from './util.js';
-import { PLAYLISTS, GROUPS } from './playlists.js';
+import { shelves, GROUPS } from './playlists.js';
 import { STATIONS, DISCOVER_TAGS, discover } from './radio.js';
 import { BADGES } from './badges.js';
 import { profile, worksBy } from './artist.js';
@@ -218,7 +218,8 @@ export class UI {
     const head = $('.artist', box);
     if (head) head.innerHTML = `
       ${who?.face
-        ? `<div class="frame"><div class="frame__mat"><img src="${escapeHtml(who.face)}" alt="${escapeHtml(name)}" loading="lazy"></div></div>`
+        ? `<div class="frame"><div class="frame__mat"><img src="${escapeHtml(who.face)}" alt="${escapeHtml(name)}" loading="lazy"
+             onerror="this.closest('.frame').className='frame frame--empty';this.replaceWith(Object.assign(document.createElement('span'),{textContent:'no likeness'}))"></div></div>`
         : `<div class="frame frame--empty"><div class="frame__mat"><span>no likeness</span></div></div>`}
       <h3 class="artist__name">${escapeHtml(who?.name || name)}</h3>
       <p class="artist__life">${escapeHtml(who?.line || life || 'Painter')}</p>
@@ -252,7 +253,7 @@ export class UI {
   renderPlaylists() {
     const cur = this.s.playlist;
     const html = GROUPS.map(g => {
-      const rows = PLAYLISTS.filter(p => p.group === g).map(p => `
+      const rows = shelves().filter(p => p.group === g).map(p => `
         <button class="row ${p.id === cur ? 'is-on' : ''}" data-playlist="${p.id}">
           <i class="row__dot"></i>
           <span class="row__text">

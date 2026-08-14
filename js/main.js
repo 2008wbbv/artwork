@@ -2,7 +2,7 @@
    artwork — wiring.
    ============================================================ */
 import { $, fmtClock, debounce } from './util.js';
-import { load, save } from './store.js';
+import { load, save, drop } from './store.js';
 import { Painter } from './painter.js';
 import { Gallery } from './gallery.js';
 import { Timer } from './timer.js';
@@ -52,16 +52,28 @@ const firstRun = !load('settings', null);
 async function hang({ silent = false } = {}) {
   const mine = ++hanging;
   swapping = true;
+  const had = gallery.current;
   const next = await gallery.advance();
   if (mine !== hanging) return null;              // a later request overtook this one
 
   if (!next) {
+    // a handful of dead links is not the same as being offline. If there's a
+    // picture on the wall already, start it again rather than take it down.
+    if (had?.img) {
+      painter.load(had.img, { tainted: had.tainted, key: had.art.key + ':again' });
+      ui.setAccent(painter.accentHsl);
+      ui.showLabel(had.art);
+      swapping = false;
+      refresh(silent);
+      return had.art;
+    }
     await painter.paintFallback(Date.now());
     if (mine !== hanging) return null;
     ui.setAccent(painter.accentHsl);
     ui.showLabel(OFFLINE_CARD);
     if (!silent) ui.toast({ kicker: 'No signal', name: 'The collections are out of reach', seal: '⌾', ms: 5000 });
     swapping = false;
+    refresh(silent);
     return null;
   }
   painter.load(next.img, { tainted: next.tainted, key: next.art.key });
@@ -69,6 +81,19 @@ async function hang({ silent = false } = {}) {
   ui.showLabel(next.art);
   swapping = false;
   return next.art;
+}
+
+/** the shelf has gone stale — fetch it again, quietly, at most once a minute */
+let refreshedAt = 0;
+function refresh(silent) {
+  if (Date.now() - refreshedAt < 60000) return;
+  refreshedAt = Date.now();
+  const id = settings.playlist;
+  for (let spin = 0; spin < 5; spin++) drop(`cache.${id}.${spin}`);
+  gallery.use(id).then(n => {
+    if (n && !gallery.current) hang({ silent: true });
+    if (!silent && n) ui.toast({ kicker: 'Refreshed', name: `${n} works back on the shelf`, seal: '❋', ms: 3000 });
+  }).catch(() => {});
 }
 
 async function choosePlaylist(id, { announce = true } = {}) {

@@ -7,6 +7,7 @@
    never has to know where a picture came from.
    ============================================================ */
 import { fetchJSON, pool, plain, shuffle } from './util.js';
+import { KEYS } from './keys.js';
 
 const NATIONS = ['French','Dutch','German','Italian','British','English','Scottish','Irish','American',
   'Spanish','Japanese','Chinese','Korean','Flemish','Belgian','Austrian','Russian','Swedish','Norwegian',
@@ -303,6 +304,7 @@ function fromWD(b) {
   const qid = (b.item?.value || '').split('/').pop();
   const file = b.image?.value;
   if (!qid || !file) return null;
+  if (!/\.(jpe?g|png)$/i.test(decodeURIComponent(file))) return null;   // tiffs and pdfs won't thumbnail
   const title = b.itemLabel?.value;
   if (!title || isQid(title)) return null;                 // nothing readable to put on the label
   const artist = b.creatorLabel?.value;
@@ -334,8 +336,8 @@ function fromWD(b) {
     url: `https://www.wikidata.org/wiki/${qid}`,
     lqip: '',
     ratio: 0,
-    image: w => `${src}?width=${w}`,
-    hiRes: `${src}?width=2400`,
+    image: w => `${src}?width=${Math.min(w, 1600)}`,
+    hiRes: '',                        // Commons thumbnails much bigger than this start failing
   });
 }
 
@@ -363,6 +365,55 @@ async function wdSearch({ filter = '', limit = 40, offset = 0 }, signal) {
   }).filter(Boolean);
 }
 
+/* ------------------------------------------------------- HARVARD
+   Dormant until a key is dropped into js/keys.js. */
+function fromHAR(d) {
+  const iiif = (d.images || [])[0]?.iiifbaseuri;
+  const flat = d.primaryimageurl;
+  if ((!iiif && !flat) || d.imagepermissionlevel > 0) return null;
+  const maker = (d.people || []).find(p => p.role === 'Artist') || (d.people || [])[0] || {};
+  return finish({
+    key: 'har:' + d.id,
+    src: 'har',
+    museum: 'Harvard Art Museums',
+    museumShort: 'Harvard Art Museums',
+    city: 'Cambridge, Mass.',
+    title: d.title || 'Untitled',
+    artist: maker.name || 'Unknown',
+    artistBio: maker.displaydate ? `${maker.name}, ${maker.displaydate}` : (maker.name || ''),
+    nationality: maker.culture || '',
+    date: d.dated || '',
+    year: d.datebegin || null,
+    medium: d.medium || '',
+    dims: d.dimensions || '',
+    credit: d.creditline || '',
+    place: maker.birthplace || '',
+    culture: d.culture || '',
+    style: d.period || '',
+    classification: d.classification || '',
+    department: d.department || '',
+    gallery: d.gallery?.name || '',
+    note: plain(d.labeltext || ''),
+    alt: [d.title, maker.name].filter(Boolean).join(', '),
+    url: d.url || `https://www.harvardartmuseums.org/collections/object/${d.id}`,
+    lqip: '',
+    ratio: 0,
+    image: w => (iiif ? `${iiif}/full/!${w},${w}/0/default.jpg` : flat),
+    hiRes: iiif ? `${iiif}/full/!2400,2400/0/default.jpg` : '',
+  });
+}
+
+async function harSearch({ params = {}, limit = 40 }, signal) {
+  if (!KEYS.harvard) return [];                      // no key, no shelf
+  const p = new URLSearchParams({
+    apikey: KEYS.harvard, size: String(limit), hasimage: '1', sort: 'random',
+    classification: 'Paintings', ...params,
+  });
+  const j = await fetchJSON(`https://api.harvardartmuseums.org/object?${p}`, { signal });
+  return (j.records || []).map(fromHAR).filter(Boolean)
+    .filter(a => !a.year || a.year < 1900);          // stay clear of anything still in copyright
+}
+
 /* ---------------------------------------------------------- */
 const SOURCES = {
   aic: { name: 'Art Institute of Chicago', run: aicSearch },
@@ -371,7 +422,11 @@ const SOURCES = {
   vam: { name: 'Victoria and Albert Museum', run: vamSearch },
   smk: { name: 'Statens Museum for Kunst', run: smkSearch },
   wd:  { name: 'Wikidata · the sum of all paintings', run: wdSearch },
+  har: { name: 'Harvard Art Museums', run: harSearch, needs: 'harvard' },
 };
+
+/** which sources are switched on for this copy */
+export const needsKey = src => SOURCES[src]?.needs || '';
 
 /** run one query spec from a playlist */
 export async function runQuery(spec, signal) {
@@ -387,16 +442,25 @@ export async function runQuery(spec, signal) {
 }
 
 /** load an <img> for the canvas; falls back to a tainted load if CORS is refused */
-export function loadImage(url) {
+export function loadImage(url, timeout = 13000) {
   return new Promise((resolve, reject) => {
+    let done = false;
+    const bail = why => { if (!done) { done = true; reject(new Error(why + ': ' + url)); } };
+    const timer = setTimeout(() => bail('timed out'), timeout);
     const attempt = anon => {
       const img = new Image();
       if (anon) img.crossOrigin = 'anonymous';
       img.decoding = 'async';
-      // decode off the main thread, so the first stroke doesn't cost a dropped second
-      img.onload = () => (img.decode ? img.decode().catch(() => {}) : Promise.resolve())
-        .then(() => resolve({ img, tainted: !anon }));
-      img.onerror = () => (anon ? attempt(false) : reject(new Error('image failed: ' + url)));
+      img.onload = () => {
+        if (done) return;
+        if (!img.naturalWidth || img.naturalWidth < 120) return bail('too small');  // an error page, usually
+        (img.decode ? img.decode().catch(() => {}) : Promise.resolve()).then(() => {
+          if (done) return;
+          done = true; clearTimeout(timer);
+          resolve({ img, tainted: !anon });
+        });
+      };
+      img.onerror = () => { if (!done) (anon ? attempt(false) : bail('failed')); };
       img.src = url;
     };
     attempt(true);

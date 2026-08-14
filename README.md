@@ -63,6 +63,8 @@ Six open sources. No keys, no accounts, no proxy — every request goes straight
 
 Wikidata is what reaches the houses that have no API of their own — the Rijksmuseum, the Prado, the Louvre, the National Gallery, the Uffizi, the Hermitage, the Mauritshuis.
 
+A seventh, **Harvard Art Museums**, is wired up but dormant: it wants a free read-only key. Put one in `js/keys.js` and its shelf appears in the drawer by itself. Nothing else in the app refers to it while that field is empty.
+
 Artist lives and portraits come from the [Wikipedia REST API](https://en.wikipedia.org/api/rest_v1/).
 
 Responses are cached for the best part of a day. Pictures start from the museum's web-sized file and quietly upgrade to the press-quality one mid-interval when the connection looks willing — never on a metered or slow one.
@@ -82,7 +84,7 @@ Responses are cached for the best part of a day. Pictures start from the museum'
 
 - Nothing leaves the browser. Settings, badges and statistics live in `localStorage` under `artwork.v1.*`; *Settings → Forget everything* clears the lot.
 - The stroke plan is seeded and deterministic, so resizing the window — or swapping the picture mid-interval — replays instantly to exactly the same level of completion.
-- Offline, the timer carries on and paints a quiet abstraction instead. Pictures come back by themselves when the network does.
+- Dead image links happen — collections move files. The queue tries sixteen, remembers the ones that failed so it never asks twice, and if it still comes up empty it repaints the picture already on the wall rather than taking it down. The quiet abstraction is only for a genuine outage, and the shelf refetches itself in the background.
 - `prefers-reduced-motion` drops the finest stroke pass and the dissolve between pictures.
 
 ```
@@ -90,6 +92,7 @@ js/painter.js      the stroke engine
 js/gallery.js      viewing order, image loading, caching
 js/sources.js      six collection adapters, normalised to one shape
 js/artist.js       who painted it, and what else of theirs is hanging
+js/keys.js         optional API keys; empty by default
 js/playlists.js    the catalogue
 js/timer.js        wall-clock pomodoro state machine
 js/radio.js        stations, streaming, now-playing

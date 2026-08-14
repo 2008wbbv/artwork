@@ -20,6 +20,7 @@ export class Gallery {
     this.current = null;
     this.onstatus = () => {};
     this.onupgrade = () => {};
+    this.dead = new Set();          // links that have already let us down
     this._ctl = null;
   }
 
@@ -48,6 +49,7 @@ export class Gallery {
 
     // museum records travel through localStorage, so image() has to be rebuilt
     this.items = items.map(rehydrate).filter(Boolean);
+    this.dead.clear();
     this.order = this._orderFor(this.items);
     this.i = -1;
     this.onstatus({ state: this.items.length ? 'ready' : 'empty', playlist: pl, count: this.items.length });
@@ -80,10 +82,11 @@ export class Gallery {
   async advance() {
     if (!this.items.length) return null;
     const w = targetWidth();
-    for (let tries = 0; tries < 6; tries++) {
+    const room = Math.min(16, this.order.length);
+    for (let tries = 0; tries < room; tries++) {
       this.i = (this.i + 1) % this.order.length;
       const art = this.items[this.order[this.i]];
-      if (!art) continue;
+      if (!art || this.dead.has(art.key)) continue;
       try {
         const { img, tainted } = await loadImage(art.image(w));
         this.current = { art, img, tainted };
@@ -92,11 +95,14 @@ export class Gallery {
         this._upgrade(this.current, img.naturalWidth || 0);
         return this.current;
       } catch {
-        /* a dead image link is not worth telling anyone about */
+        this.dead.add(art.key);      // a dead link is not worth coming back to
       }
     }
     return null;
   }
+
+  /** how much of this shelf is still standing */
+  get alive() { return this.items.filter(a => !this.dead.has(a.key)).length; }
 
   /** the museum's press-quality file, fetched quietly behind the small one */
   _upgrade(entry, haveWidth) {
@@ -126,7 +132,11 @@ export class Gallery {
   }
 
   _warmNext(w) {
-    const nxt = this.items[this.order[(this.i + 1) % this.order.length]];
+    let nxt = null;
+    for (let k = 1; k <= 3 && !nxt; k++) {
+      const c = this.items[this.order[(this.i + k) % this.order.length]];
+      if (c && !this.dead.has(c.key)) nxt = c;
+    }
     if (!nxt) return;
     const pre = new Image();
     pre.crossOrigin = 'anonymous';

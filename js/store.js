@@ -18,6 +18,11 @@ export function save(key, val) {
   return val;
 }
 
+export function drop(key) {
+  mem.delete(key);
+  try { localStorage.removeItem(NS + key); } catch {}
+}
+
 /** time-boxed cache for museum responses so a playlist re-opens instantly */
 export function cached(key, ttlMs, produce) {
   const hit = load('cache.' + key, null);
