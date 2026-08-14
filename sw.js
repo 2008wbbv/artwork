@@ -3,7 +3,7 @@
    cached on install, and the last few pictures you were shown are
    kept as they go past, so a flight still gets a painting.
    ============================================================ */
-const SHELL = 'artwork-shell-v2';
+const SHELL = 'artwork-shell-v3';
 const PICTURES = 'artwork-pictures-v1';
 const KEEP = 40;
 

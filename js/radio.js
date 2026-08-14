@@ -78,6 +78,40 @@ function labelFor(url) {
   } catch { return url.slice(0, 46); }
 }
 
+/* ------------------------------------------------- elsewhere
+   Spotify and Apple Music both publish an embed player that needs
+   no key, no account and no backend, which is the only kind of
+   thing that can go in a site like this one. Paste a link to a
+   playlist, album or track and it appears in the corner.
+
+   What it costs: the player is someone else's page in an iframe,
+   so the volume slider doesn't reach it, and it can't be ducked
+   under the chime between intervals — those are its own controls
+   now. And it plays previews unless you're already signed in to
+   that service in this browser. Both are stated in the panel
+   rather than left to be discovered. */
+
+const EMBEDS = [
+  { name: 'Spotify', test: /(?:open\.spotify\.com\/(?:intl-[a-z]+\/)?|spotify:)(track|album|playlist|artist|show|episode)[/:]([A-Za-z0-9]{16,})/,
+    make: m => `https://open.spotify.com/embed/${m[1]}/${m[2]}`, tall: 380 },
+  { name: 'Apple Music', test: /music\.apple\.com\/([a-z]{2})\/(album|playlist|song|music-video)\/([^/?#]+)\/([^/?#]+)/,
+    make: m => `https://embed.music.apple.com/${m[1]}/${m[2]}/${m[3]}/${m[4]}`, tall: 450 },
+];
+
+/** a paste from Spotify or Apple Music → what to put in the iframe */
+export function embedFor(input) {
+  const t = String(input || '').trim();
+  for (const e of EMBEDS) {
+    const m = t.match(e.test);
+    if (m) return { service: e.name, url: e.make(m), tall: e.tall };
+  }
+  return null;
+}
+
+export const savedEmbed = () => load('embed', null);
+export const keepEmbed = e => save('embed', e);
+export const dropEmbed = () => save('embed', null);
+
 /** a station made out of files picked off this machine */
 export function fromFiles(files) {
   const tracks = [...files]

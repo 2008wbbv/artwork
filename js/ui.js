@@ -3,7 +3,8 @@
    ============================================================ */
 import { $, $$, escapeHtml, fmtDuration, reducedMotion } from './util.js';
 import { shelves, GROUPS } from './playlists.js';
-import { STATIONS, DISCOVER_TAGS, discover, mine, addMine, dropMine, fromFiles } from './radio.js';
+import { STATIONS, DISCOVER_TAGS, discover, mine, addMine, dropMine, fromFiles,
+  embedFor, savedEmbed, keepEmbed, dropEmbed } from './radio.js';
 import { BADGES } from './badges.js';
 import { profile, worksBy } from './artist.js';
 import { rooms, count, when, style, columns } from './museum.js';
@@ -591,6 +592,18 @@ export class UI {
         </div>
         <div id="own-list">${ownRows(mine(), cur)}</div>
       </section>
+      <section class="sect">
+        <h3 class="sect__head">Spotify · Apple Music</h3>
+        <p class="sect__note">Paste a playlist, album or track and their own player sits in the corner.
+          It's their page in a frame, so the volume here doesn't reach it and it won't duck under the
+          chime — those become its controls. Signed in to that service in this browser, you get the whole
+          track; signed out, a preview.</p>
+        <div class="bring">
+          <input type="url" id="embed-url" placeholder="open.spotify.com/… or music.apple.com/…" autocomplete="off" spellcheck="false">
+          <button class="btn btn--quiet" data-embed-go="1">Open</button>
+        </div>
+        <div id="embed-state"></div>
+      </section>
       ${groups.map(g => `<section class="sect"><h3 class="sect__head">${escapeHtml(g)}</h3>${rows(STATIONS.filter(s => s.g === g))}</section>`).join('')}
       <section class="sect">
         <h3 class="sect__head">Elsewhere</h3>
@@ -604,6 +617,51 @@ export class UI {
     if (picker) picker.onchange = () => { this._ownFiles(picker.files); picker.value = ''; };
     const url = $('#own-url');
     if (url) url.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); this._addOwn(); } };
+    const emb = $('#embed-url');
+    if (emb) emb.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); this._openEmbed(); } };
+    this._embedState();
+  }
+
+  /* ------------------------------------ somebody else's player */
+  _embedState() {
+    const box = $('#embed-state');
+    if (!box) return;
+    const e = savedEmbed();
+    box.innerHTML = e
+      ? `<p class="sect__note">${escapeHtml(e.service)} is in the corner.
+          <button class="lnk" data-embed-off="1">Close it</button></p>`
+      : '';
+  }
+
+  _openEmbed() {
+    const f = $('#embed-url');
+    if (!f || !f.value.trim()) return;
+    const e = embedFor(f.value);
+    if (!e) {
+      this.toast({ kicker: 'Not a link either service knows', name: 'Spotify or Apple Music, playlist album or track', seal: '◦', ms: 4600 });
+      return f.focus();
+    }
+    f.value = '';
+    this.showEmbed(e);
+    keepEmbed(e);
+    this._embedState();
+    this.on.embedOn?.();
+  }
+
+  /** put their player in the corner, or take it away */
+  showEmbed(e) {
+    const box = $('#embed'), slot = $('#embed-slot');
+    if (!e) { box.hidden = true; slot.replaceChildren(); dropEmbed(); this._embedState(); return; }
+    $('#embed-name').textContent = e.service;
+    const f = document.createElement('iframe');
+    f.src = e.url;
+    f.height = String(e.tall);
+    f.loading = 'lazy';
+    f.allow = 'autoplay; encrypted-media; clipboard-write; fullscreen; picture-in-picture';
+    f.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms allow-presentation');
+    f.title = e.service + ' player';
+    slot.replaceChildren(f);
+    box.hidden = false;
   }
 
   /** repaint just the list of your own stations */
@@ -800,6 +858,7 @@ export class UI {
       this.on.nextArt?.();
     };
     E.sound.onclick = e => (e.shiftKey ? this.toggleDrawer('sound') : this.on.toggleRadio?.());
+    $('#embed-close').onclick = () => { this.showEmbed(null); this._embedState(); };
     E.npPrev.onclick = () => this.on.skipTrack?.(-1);
     E.npNext.onclick = () => this.on.skipTrack?.(1);
     E.sound.oncontextmenu = e => { e.preventDefault(); this.toggleDrawer('sound'); };
@@ -825,6 +884,8 @@ export class UI {
       }
       if (e.target.closest('#own-pick')) { $('#own-files')?.click(); return; }
       if (e.target.closest('#own-add')) { this._addOwn(); return; }
+      if (e.target.closest('[data-embed-go]')) { this._openEmbed(); return; }
+      if (e.target.closest('[data-embed-off]')) { this.showEmbed(null); this._embedState(); return; }
       if (e.target.closest('[data-tape-go]')) { this._runTape(); return; }
       if (e.target.closest('[data-tape-off]')) { this.on.tape?.(''); return; }
       const again = e.target.closest('[data-tape-again]');

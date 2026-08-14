@@ -6,7 +6,7 @@ import { load, save, drop } from './store.js';
 import { Painter } from './painter.js';
 import { Gallery } from './gallery.js';
 import { Timer } from './timer.js';
-import { Radio, STATIONS } from './radio.js';
+import { Radio, STATIONS, savedEmbed } from './radio.js';
 import { Ledger } from './badges.js';
 import { hang as remember } from './museum.js';
 import { UI } from './ui.js';
@@ -239,6 +239,8 @@ ui.on = {
   },
   volume(v) { radio.setVolume(v); persist(); },
   skipTrack(by) { radio.skip(by); },
+  /* two things playing at once helps nobody */
+  embedOn() { if (radio.playing) { settings.radioOn = false; persist(); radio.stop(); } },
 
   /* --------------------------------------------- the tape */
   /** put a build behind the clock instead of a painting */
@@ -314,6 +316,10 @@ radio.onchange = (r, err) => {
    video on page load without asking is somebody else's idea of good */
 const saved = tapeSaved();
 if (saved?.id) ui.setTape({ state: 'saved', id: saved.id });
+// their player, on the other hand, is just an iframe and can come straight back.
+// If one is there, the radio stays off — two things playing at once helps nobody.
+const player = savedEmbed();
+if (player?.url) { ui.showEmbed(player); settings.radioOn = false; persist(); }
 
 window.addEventListener('resize', debounce(() => { painter.resize(); ui.relayout(); }, 220));
 window.addEventListener('orientationchange', () => setTimeout(() => painter.resize(), 320));

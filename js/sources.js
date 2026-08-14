@@ -422,12 +422,29 @@ async function harSearch({ params = {}, limit = 40 }, signal) {
    uploaded them himself, CC BY-SA. The licence wants attribution, so
    it goes on the label next to the picture, not in a credits file.
 
-   No claim is made here about which in-game painting any one canvas
-   became. The file names are the painter's own and don't line up with
-   the game's names the way you'd expect — the one he called "Graham"
-   is a still life after Sánchez Cotán — and the textures themselves
-   can't be checked from here. So the shelf says whose paintings these
-   are and leaves the matching to whoever recognises it. */
+   Which canvas became which in-game painting is taken from the
+   Minecraft Wiki's painting table, not from memory — an earlier
+   version of this file guessed, and guessed wrong about what the
+   in-game "Graham" depicts. Only exact title matches are claimed.
+   Four of his ten canvases on Commons are in the game; the other
+   six are paintings that never became one, and say nothing.
+
+   The game's own textures are not here and won't be: they are
+   Mojang's files. What is here is the painting each was cut from,
+   at the size it was actually painted. */
+
+/* From minecraft.wiki/w/Painting, keyed on the painter's own title.
+   All four have hung in the game since long before 2022. */
+const IN_GAME = {
+  'bonjour monsieur courbet': { id: 'Courbet', size: '62 × 74 cm', medium: 'Graphite on paper', year: '2003',
+    of: 'Two hikers greeting each other, after Gustave Courbet’s The Meeting.' },
+  'wanderer': { id: 'Wanderer', size: '33 × 37 cm', medium: 'Oil on canvas', year: '2008',
+    of: 'After Caspar David Friedrich’s Wanderer above the Sea of Fog.' },
+  'the stage is set': { id: 'Stage', size: '100 × 120 cm', medium: 'Oil on canvas', year: '2006',
+    of: 'Scenery from Space Quest I, with King Graham of King’s Quest standing in it.' },
+  'graham': { id: 'Graham', size: '', medium: 'Oil on panel', year: '2003',
+    of: 'King Graham of King’s Quest, in a still life after Sánchez Cotán.' },
+};
 
 const COMMONS_FILE = 'https://commons.wikimedia.org/wiki/Special:FilePath/';
 
@@ -462,6 +479,7 @@ function fromCommons(page, artist) {
   const title = commonsTitle(page.title, artist);
   if (!title) return null;
   const src = COMMONS_FILE + encodeURIComponent(file);
+  const game = IN_GAME[title.toLowerCase()];
   return finish({
     key: 'com:' + page.pageid,
     src: 'com',
@@ -472,9 +490,9 @@ function fromCommons(page, artist) {
     artist,
     artistBio: '',
     nationality: '',
-    date: (plain(m.DateTimeOriginal?.value) || '').slice(0, 4),
-    medium: plain(m.Medium?.value) || 'Oil on canvas',
-    dims: '',                                      // Commons knows the pixels, not the canvas
+    date: game?.year || (plain(m.DateTimeOriginal?.value) || '').slice(0, 4),
+    medium: game?.medium || plain(m.Medium?.value) || 'Oil on canvas',
+    dims: game?.size || '',                        // the canvas, not the pixels
     credit: licence,                               // the licence goes on the label, as it must
     place: '',
     culture: '',
@@ -482,7 +500,9 @@ function fromCommons(page, artist) {
     classification: 'Painting',
     department: '',
     gallery: '',
-    note: describe(plain(m.ImageDescription?.value, 240), plain(m.Medium?.value)),
+    note: game
+      ? `${game.of} Cut to sixteen pixels a side, it hangs in Minecraft as “${game.id}”.`
+      : describe(plain(m.ImageDescription?.value, 240), plain(m.Medium?.value)),
     alt: [title, artist].filter(Boolean).join(', '),
     url: 'https://commons.wikimedia.org/wiki/File:' + encodeURIComponent(file).replace(/%20/g, '_'),
     lqip: '',
