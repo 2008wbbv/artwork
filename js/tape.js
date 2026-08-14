@@ -8,10 +8,14 @@
    finishes.
 
    YouTube's player only offers rates up to 2×, which is nowhere
-   near enough for a two-hour build, so the rate does the fine
+   near enough for a two-hour timelapse, so the rate does the fine
    work and the playhead is walked forward to keep the video on
    the same clock as the timer. Muted throughout — whatever you
    are listening to is none of the tape's business.
+
+   Or the other way round: the same player, kept out of sight and
+   unmuted, is a way of using YouTube as the music. That one runs
+   at its own pace and ignores the clock entirely.
    ============================================================ */
 import { load, save } from './store.js';
 
@@ -54,7 +58,8 @@ export class Tape {
     this.player = null;
     this.id = '';
     this.length = 0;                  // seconds of video
-    this.live = false;                // showing, as opposed to merely loaded
+    this.live = false;                // the video is showing behind the clock
+    this.heard = false;               // out of sight, playing for its sound
     this.onerror = () => {};
     this.onready = () => {};
     this._poll = null;
@@ -102,10 +107,27 @@ export class Tape {
     });
   }
 
+  /** sound only: out of sight, unmuted, at its own pace */
+  listen() {
+    if (!this.player) return;
+    this.live = false;
+    this.heard = true;
+    clearInterval(this._poll); this._poll = null;
+    this.host.dataset.on = '0';
+    this.host.dataset.heard = '1';
+    this.player.unMute();
+    this.player.setVolume(100);
+    this.player.setPlaybackRate(1);
+    this._at = 1;
+    this.player.playVideo();
+  }
+
   /** show it and start walking it in step with the interval */
   begin(getProgress, getRemainingMs) {
     if (!this.player) return;
     this.live = true;
+    this.heard = false;
+    this.host.dataset.heard = '0';
     this.host.dataset.on = '1';
     this.player.mute();
     this.player.playVideo();
@@ -142,10 +164,15 @@ export class Tape {
   /** back to the paintings */
   hide() {
     this.live = false;
+    this.heard = false;
     clearInterval(this._poll); this._poll = null;
     this.host.dataset.on = '0';
+    this.host.dataset.heard = '0';
     this.player?.pauseVideo?.();
   }
+
+  /** either mode is on */
+  get running() { return this.live || this.heard; }
 
   destroy() {
     this.hide();

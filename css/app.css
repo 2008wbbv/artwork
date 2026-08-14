@@ -299,6 +299,11 @@ a{color:inherit}
 }
 .tape[data-on="1"]{opacity:1}
 .tape[data-on="0"]{visibility:hidden}
+/* sound only: the player has to stay in the document to keep playing,
+   so it is put where nobody has to look at it */
+.tape[data-heard="1"]{
+  visibility:visible;opacity:0;inset:auto auto 0 0;width:1px;height:1px;overflow:hidden;
+}
 .tape iframe,.tape .tape__frame{
   position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
   /* 16:9 covering whichever way the window is shaped */
@@ -524,8 +529,8 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
 /* it belongs to the picture, so it fades with everything else */
 .shell[data-recede="1"] ~ .dockplayer{opacity:0;pointer-events:none;transition:opacity 1s var(--ease)}
 
-/* ---------- the tape, and the fellow who watches it ---------- */
-.sect--mc{position:relative;padding-bottom:3.4rem}
+/* ---------- the tape ---------- */
+.sect--tape{position:relative}
 .tag{
   margin-left:.5rem;padding:.1rem .38rem;border-radius:2px;font-size:.5rem;letter-spacing:.16em;
   color:var(--ink-4);border:1px solid var(--line-2);vertical-align:.1em;
@@ -537,32 +542,6 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
   text-decoration-color:var(--line);
 }
 .lnk:hover{text-decoration-color:var(--accent)}
-/* he stands in the corner of his own section */
-.steve{
-  position:absolute;right:0;bottom:.4rem;width:58px;height:66px;
-  opacity:.55;transition:opacity var(--mid) var(--ease);
-}
-.sect--mc:hover .steve{opacity:.9}
-.steve svg{width:100%;height:100%;overflow:visible}
-.steve__arm{transform-origin:15px 12px;animation:swing 1.9s var(--ease) infinite}
-.steve__block{animation:knock 1.9s var(--ease) infinite}
-.steve__body{animation:bob 1.9s var(--ease) infinite}
-/* the pick hangs down, so anticlockwise is the swing that reaches the block */
-@keyframes swing{
-  0%,100%{transform:rotate(14deg)}
-  40%{transform:rotate(-20deg)}
-  48%{transform:rotate(-17deg)}
-}
-@keyframes knock{
-  0%,38%,56%,100%{transform:none}
-  44%{transform:translate(1px,1px)}
-  50%{transform:translate(-.5px,0)}
-}
-@keyframes bob{0%,100%{transform:none}40%{transform:translateY(.6px)}}
-@media (prefers-reduced-motion:reduce){
-  .steve__arm,.steve__block,.steve__body{animation:none}
-  .steve__arm{transform:rotate(-16deg)}
-}
 
 /* ---------- badges ---------- */
 .badges{display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem}
@@ -867,7 +846,7 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
 /* the button waits until the paint is down */
 .intro #intro-go{
   background:#f4efe6;color:#12100e;
-  animation:fadeUp 800ms var(--ease) 2350ms both;
+  animation:fadeUp 620ms var(--ease) 1520ms both;
 }
 
 .intro__mark{
@@ -884,7 +863,7 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
   -webkit-mask-size:300% 220%;mask-size:300% 220%;
   -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
   -webkit-mask-position:100% 50%;mask-position:100% 50%;
-  animation:brushed 1250ms linear 900ms forwards, settle 700ms var(--ease) 2150ms both;
+  animation:brushed 800ms linear 560ms forwards, settle 480ms var(--ease) 1360ms both;
 }
 @keyframes brushed{to{-webkit-mask-position:0% 50%;mask-position:0% 50%}}
 /* the paint darkens a little as it takes */
@@ -897,7 +876,7 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
   transform:translate(-115%,-50%);
   background:var(--stroke) center/100% 100% no-repeat;
   opacity:0;pointer-events:none;
-  animation:brushing 1900ms linear 900ms both;
+  animation:brushing 1220ms linear 560ms both;
 }
 /* the brush itself, its tip at the wet end of the mark */
 .mark__tool{
@@ -905,7 +884,7 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
   transform:translate(-72%,-50%);
   background:var(--brush) center/contain no-repeat;
   opacity:0;pointer-events:none;
-  animation:tooling 2050ms 550ms forwards;
+  animation:tooling 1320ms 330ms forwards;
 }
 /* in from the left, down onto the word, across it, then up and away */
 @keyframes tooling{

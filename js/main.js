@@ -243,23 +243,31 @@ ui.on = {
   embedOn() { if (radio.playing) { settings.radioOn = false; persist(); radio.stop(); } },
 
   /* --------------------------------------------- the tape */
-  /** put a build behind the clock instead of a painting */
-  async tape(input) {
+  /** a YouTube video behind the clock, or just its sound */
+  async tape(input, mode = 'watch') {
     if (!input) {
       tape.hide(); tapeDrop();
       ui.setTape(null);
       ui.showLabel(gallery.current?.art);
       return;
     }
-    ui.setTape({ state: 'loading' });
+    ui.setTape({ state: 'loading', mode });
     try {
       const seconds = await tape.load(input);
-      tapeKeep({ id: tape.id, at: Date.now() });
-      tape.begin(() => timer.progress, () => timer.left);
-      if (timer.state !== 'running') tape.pause();
-      ui.setTape({ state: 'on', id: tape.id, seconds, span: timer.duration });
-    ui.setScrims({ centre: 1, label: 1, dock: 1, top: 1 });
-    ui.showLabel(null);            // there is no picture to caption
+      tapeKeep({ id: tape.id, at: Date.now(), mode });
+      if (mode === 'listen') {
+        // it is the music now, so nothing else should be playing over it
+        if (radio.playing) { settings.radioOn = false; persist(); radio.stop(); }
+        tape.listen();
+        ui.setTape({ state: 'on', mode, id: tape.id, seconds });
+        ui.showLabel(gallery.current?.art);     // the painting carries on behind
+      } else {
+        tape.begin(() => timer.progress, () => timer.left);
+        if (timer.state !== 'running') tape.pause();
+        ui.setTape({ state: 'on', mode, id: tape.id, seconds, span: timer.duration });
+        ui.setScrims({ centre: 1, label: 1, dock: 1, top: 1 });
+        ui.showLabel(null);                     // there is no picture to caption
+      }
     } catch (err) {
       tape.hide();
       ui.setTape({ state: 'failed', why: err.message });
@@ -315,7 +323,7 @@ radio.onchange = (r, err) => {
 /* a tape you left behind is offered again, not resumed — starting a
    video on page load without asking is somebody else's idea of good */
 const saved = tapeSaved();
-if (saved?.id) ui.setTape({ state: 'saved', id: saved.id });
+if (saved?.id) ui.setTape({ state: 'saved', id: saved.id, mode: saved.mode || 'watch' });
 // their player, on the other hand, is just an iframe and can come straight back.
 // If one is there, the radio stays off — two things playing at once helps nobody.
 const player = savedEmbed();

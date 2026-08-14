@@ -11,69 +11,21 @@ import { rooms, count, when, style, columns } from './museum.js';
 import { Painter } from './painter.js';
 import { loadImage } from './sources.js';
 
-/* A small blocky fellow who stands in the Minecraft section. Drawn
-   here in rectangles rather than borrowed: the game's own skin file
-   is Mojang's, and this repository is public. The proportions are the
-   classic ones — an eight-wide head, an eight-wide body, four-wide
-   limbs, thirty-two tall — but every colour is chosen here. */
-const STEVE = `<span class="steve" aria-hidden="true">
-  <svg viewBox="0 0 30 34" shape-rendering="crispEdges">
-    <g class="steve__block">
-      <rect x="20" y="25" width="8" height="8" fill="#69893f"/>
-      <rect x="20" y="25" width="8" height="2" fill="#84b055"/>
-      <rect x="20" y="27" width="8" height="1" fill="#74994a"/>
-      <rect x="20" y="31" width="8" height="2" fill="#55702f"/>
-    </g>
-    <g class="steve__body">
-      <!-- far arm -->
-      <rect x="2"  y="9"  width="3" height="8" fill="#256d67"/>
-      <rect x="2"  y="17" width="3" height="3" fill="#9c6f4a"/>
-      <!-- head -->
-      <rect x="5"  y="1"  width="8" height="4" fill="#33241a"/>
-      <rect x="5"  y="5"  width="8" height="6" fill="#b8865f"/>
-      <rect x="5"  y="5"  width="8" height="1" fill="#3d2b1e"/>
-      <rect x="12" y="5"  width="1" height="6" fill="#a2734f"/>
-      <rect x="6"  y="6"  width="2" height="2" fill="#f0ece5"/>
-      <rect x="9"  y="6"  width="2" height="2" fill="#f0ece5"/>
-      <rect x="7"  y="6"  width="1" height="2" fill="#3f6f93"/>
-      <rect x="10" y="6"  width="1" height="2" fill="#3f6f93"/>
-      <rect x="7"  y="9"  width="4" height="1" fill="#7d5335"/>
-      <rect x="6"  y="9"  width="1" height="1" fill="#8f6140"/>
-      <!-- torso -->
-      <rect x="5"  y="11" width="8" height="8" fill="#2f8f86"/>
-      <rect x="11" y="11" width="2" height="8" fill="#288078"/>
-      <rect x="5"  y="19" width="8" height="2" fill="#2b3a68"/>
-      <!-- legs -->
-      <rect x="5"  y="21" width="4" height="9" fill="#3b4f8a"/>
-      <rect x="9"  y="21" width="4" height="9" fill="#33447a"/>
-      <rect x="5"  y="30" width="8" height="3" fill="#43434c"/>
-    </g>
-    <g class="steve__arm">
-      <rect x="13" y="11" width="4" height="7" fill="#2f8f86"/>
-      <rect x="13" y="18" width="4" height="3" fill="#b8865f"/>
-      <rect x="14" y="20" width="2" height="8" fill="#6b4b2c"/>
-      <rect x="14" y="20" width="1" height="8" fill="#7d5a37"/>
-      <rect x="11" y="27" width="8" height="2" fill="#9aa4ad"/>
-      <rect x="11" y="29" width="8" height="1" fill="#79838c"/>
-      <rect x="18" y="26" width="1" height="1" fill="#9aa4ad"/>
-      <rect x="11" y="26" width="1" height="1" fill="#9aa4ad"/>
-    </g>
-  </svg>
-</span>`;
-
-/* The shelf that needs a little more explaining than a one-line note. */
-const MINECRAFT = `<section class="sect sect--mc">
-  <h3 class="sect__head">Minecraft <span class="tag">experiment</span></h3>
-  <p class="sect__note">The paintings shelf up there is Kristoffer Zetterstrand's originals, the canvases
-    the game's paintings were cut from. And instead of a painting you can put a build timelapse behind the
-    clock: paste a YouTube link and it runs at whatever speed makes it finish exactly when you do. Muted,
-    so it doesn't touch your music.</p>
+/* The section that needs a little more explaining than a one-line note. */
+const TAPE = `<section class="sect sect--tape">
+  <h3 class="sect__head">YouTube <span class="tag">experiment</span></h3>
+  <p class="sect__note">Paste a YouTube link and do one of two things with it. <b>Watch</b> puts the
+    video behind the clock instead of a painting, muted, running at whatever speed makes it end exactly
+    when your interval does — a two-hour timelapse over twenty-five minutes of you. <b>Listen</b> keeps
+    it out of sight and plays the sound instead, at its own pace, as your music.</p>
   <div class="bring">
-    <input type="url" id="tape-url" placeholder="https://youtu.be/…" autocomplete="off" spellcheck="false">
-    <button class="btn btn--quiet" data-tape-go="1">Run</button>
+    <input type="url" id="tape-url" placeholder="https://youtu.be/… or youtube.com/watch?v=…" autocomplete="off" spellcheck="false">
+  </div>
+  <div class="bring">
+    <button class="btn btn--quiet bring__wide" data-tape-go="watch">Watch it behind the clock</button>
+    <button class="btn btn--quiet bring__wide" data-tape-go="listen">Play the sound only</button>
   </div>
   <div id="tape-state" data-on="0"></div>
-  ${STEVE}
 </section>`;
 
 const HUSH_AFTER = 6200;
@@ -518,10 +470,10 @@ export class UI {
     }).join('');
     $('#panel-playlists').innerHTML =
       `<p class="sect__note">Every picture here is out of copyright or freely licensed, and published openly
-        by the collection that holds it.</p>${html}${MINECRAFT}`;
+        by the collection that holds it.</p>${html}${TAPE}`;
     this.setTape(this._tape);
     const f = $('#tape-url');
-    if (f) f.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); this._runTape(); } };
+    if (f) f.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); this._runTape('watch'); } };
   }
 
   /* ----------------------------------------------- the tape */
@@ -532,23 +484,31 @@ export class UI {
     if (!box) return;
     if (!t) { box.innerHTML = ''; box.dataset.on = '0'; return; }
     box.dataset.on = '1';
-    if (t.state === 'loading') { box.innerHTML = '<p class="sect__note">Finding it…</p>'; return; }
+    if (t.state === 'loading') { box.innerHTML = '<p class="sect__note">Finding it on YouTube…</p>'; return; }
     if (t.state === 'failed') { box.innerHTML = `<p class="sect__note tape__bad">${escapeHtml(t.why)}</p>`; return; }
     if (t.state === 'saved') {
       box.innerHTML = `<p class="sect__note">You left one here.
-        <button class="lnk" data-tape-again="${escapeHtml(t.id)}">Run it again</button></p>`;
+        <button class="lnk" data-tape-again="${escapeHtml(t.id)}" data-mode="${escapeHtml(t.mode || 'watch')}"
+          >${t.mode === 'listen' ? 'Play it again' : 'Run it again'}</button></p>`;
+      return;
+    }
+    if (t.mode === 'listen') {
+      box.innerHTML = `<p class="sect__note">
+        ${escapeHtml(fmtDuration(t.seconds / 60))} of sound, playing out of sight at its own pace.
+        <button class="lnk" data-tape-off="1">Stop it</button></p>`;
       return;
     }
     const rate = t.seconds && t.span ? t.seconds / (t.span / 1000) : 0;
     box.innerHTML = `<p class="sect__note">
-      ${escapeHtml(fmtDuration(t.seconds / 60))} of building, laid over
+      ${escapeHtml(fmtDuration(t.seconds / 60))} of video, laid over
       ${escapeHtml(fmtDuration(t.span / 60000))} of you — about ${rate.toFixed(1)}× speed.
       <button class="lnk" data-tape-off="1">Back to paintings</button></p>`;
   }
 
-  _runTape() {
+  _runTape(mode = 'watch') {
     const f = $('#tape-url');
-    if (f && f.value.trim()) this.on.tape?.(f.value.trim());
+    if (!f || !f.value.trim()) return f?.focus();
+    this.on.tape?.(f.value.trim(), mode);
   }
 
   renderSound() {
@@ -886,10 +846,11 @@ export class UI {
       if (e.target.closest('#own-add')) { this._addOwn(); return; }
       if (e.target.closest('[data-embed-go]')) { this._openEmbed(); return; }
       if (e.target.closest('[data-embed-off]')) { this.showEmbed(null); this._embedState(); return; }
-      if (e.target.closest('[data-tape-go]')) { this._runTape(); return; }
+      const go = e.target.closest('[data-tape-go]');
+      if (go) { this._runTape(go.dataset.tapeGo); return; }
       if (e.target.closest('[data-tape-off]')) { this.on.tape?.(''); return; }
       const again = e.target.closest('[data-tape-again]');
-      if (again) { this.on.tape?.(again.dataset.tapeAgain); return; }
+      if (again) { this.on.tape?.(again.dataset.tapeAgain, again.dataset.mode); return; }
       const work = e.target.closest('[data-work]');
       if (work) {
         const w = this._works?.[+work.dataset.work];
