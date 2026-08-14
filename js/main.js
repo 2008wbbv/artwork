@@ -17,7 +17,7 @@ const DEFAULTS = {
   autoBreak: true, autoFocus: false,
   playlist: 'the-ten',
   volume: .5, stationId: 'secretagent', station: null, radioOn: true,
-  chimes: true, recede: true, labelOn: true, grain: true,
+  chimes: true, recede: true, labelOn: true, grain: true, fit: 'fill',
 };
 
 const settings = { ...DEFAULTS, ...load('settings', {}) };
@@ -69,7 +69,8 @@ async function choosePlaylist(id, { announce = true } = {}) {
   persist();
   const pl = byId(id);
   ui.setPlaylistChip(pl, 0);
-  ui.renderPlaylists();
+  painter.fit = settings.fit;
+ui.renderPlaylists();
   const n = await gallery.use(id);
   ui.setPlaylistChip(pl, n);
   if (!n) {
@@ -158,6 +159,7 @@ ui.on = {
     radio.play(st);
   },
   volume(v) { radio.setVolume(v); persist(); },
+  fit(mode) { settings.fit = mode; persist(); painter.setFit(mode); },
   wipe() {
     if (!confirm('Clear every badge, statistic and setting stored in this browser?')) return;
     Object.keys(localStorage).filter(k => k.startsWith('artwork.v1.')).forEach(k => localStorage.removeItem(k));
@@ -203,6 +205,7 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden) { last = performance.now(); painter.catchUp = true; }
 });
 
+painter.fit = settings.fit;
 ui.renderPlaylists();
 ui.setPlaylistChip(byId(settings.playlist), 0);
 ui.setGrain(settings.grain);

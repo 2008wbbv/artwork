@@ -309,6 +309,14 @@ export class UI {
       </section>
       <section class="sect">
         <h3 class="sect__head">The room</h3>
+        <div class="field">
+          <span class="field__label">The picture
+            <span class="field__sub">Filling the screen crops it; hanging it shows the whole thing on a wall.</span></span>
+          <span class="field__ctl seg seg--fit">
+            <button data-fit="fill" class="${s.fit !== 'frame' ? 'is-on' : ''}">Fill</button>
+            <button data-fit="frame" class="${s.fit === 'frame' ? 'is-on' : ''}">Hang</button>
+          </span>
+        </div>
         ${sw('set-recede', 'Let the interface recede', 'After a few still seconds, everything but the clock fades.', s.recede)}
         ${sw('set-label', 'Show the wall label', '', s.labelOn)}
         ${sw('set-grain', 'Film grain', '', s.grain)}
@@ -365,6 +373,12 @@ export class UI {
         const adhoc = st.dataset.adhoc ? JSON.parse(st.dataset.adhoc) : null;
         this.on.station?.(st.dataset.station, adhoc);
         $$('[data-station]', E.drawer).forEach(r => r.classList.toggle('is-on', r === st));
+        return;
+      }
+      const fit = e.target.closest('[data-fit]');
+      if (fit) {
+        $$('[data-fit]', E.drawer).forEach(f => f.classList.toggle('is-on', f === fit));
+        this.on.fit?.(fit.dataset.fit);
         return;
       }
       const tag = e.target.closest('[data-tag]');

@@ -51,6 +51,8 @@ export class Painter {
     this.accentHsl = [.116, .68, .53];
     this.lowMotion = reducedMotion();
     this.glazeMax = .55;
+    this.fit = 'fill';                 // 'fill' bleeds off the edges · 'frame' hangs it on a wall
+    this.wall = '#0f0e0d';
     this.setSize();
   }
 
@@ -72,14 +74,33 @@ export class Painter {
     return true;
   }
 
-  /** cover-fit the picture over the viewport, with a little overscan —
-      museum photographs often carry a sliver of frame or mount at the edge */
+  /** where the picture sits. Filling overscans by 3.5%, because museum
+      photographs often carry a sliver of frame or mount at the edge;
+      framing fits the whole thing and leaves a wall around it. */
   _rect() {
     const iw = this.img.naturalWidth || this.img.width;
     const ih = this.img.naturalHeight || this.img.height;
-    const s = Math.max(this.W / iw, this.H / ih) * 1.035;
+    const s = this.fit === 'frame'
+      ? Math.min(this.W / iw, this.H / ih) * .78
+      : Math.max(this.W / iw, this.H / ih) * 1.035;
     const w = iw * s, h = ih * s;
-    return { x: (this.W - w) / 2, y: (this.H - h) / 2, w, h };
+    const y = this.fit === 'frame' ? (this.H - h) / 2 - this.H * .012 : (this.H - h) / 2;
+    return { x: (this.W - w) / 2, y, w, h };
+  }
+
+  /** switch between filling the screen and hanging it, mid-interval if you like */
+  setFit(fit) {
+    if (fit === this.fit) return;
+    this.fit = fit;
+    if (!this.img) return;
+    this._buildPlan();
+    this._gauge();
+    this.drawn = 0;
+    this.glazeAt = 0;
+    this.dissolve = 0;
+    this._ground();
+    this.target = this._targetFor(this.progress);
+    this.catchUp = true;
   }
 
   /* ----------------------------------------------- loading art */
@@ -214,15 +235,38 @@ export class Painter {
     const tone = gr.map(v => lerp(avg, v, .55) * .9);
     this.ground = `rgb(${tone.map(Math.round).join(',')})`;
     this.groundLuma = (tone[0] * .299 + tone[1] * .587 + tone[2] * .114) / 255;
+    const wall = tone.map(v => clamp(v * .42 + 6, 6, 90));
+    this.wall = `rgb(${wall.map(Math.round).join(',')})`;
+    this.wallLuma = (wall[0] * .299 + wall[1] * .587 + wall[2] * .114) / 255;
   }
 
   _ground(alpha = 1, tooth = true) {
     const g = this.ctx;
     const rect = this.plan?.rect || this._rect();
+    const framed = this.fit === 'frame';
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalAlpha = alpha;
-    g.fillStyle = this.ground;
-    g.fillRect(0, 0, this.W, this.H);
+
+    if (framed) {
+      g.fillStyle = this.wall;
+      g.fillRect(0, 0, this.W, this.H);
+      const lit = g.createRadialGradient(this.W / 2, this.H * .1, 0, this.W / 2, this.H * .1, this.H * 1.25);
+      lit.addColorStop(0, 'rgba(255,248,232,.09)');
+      lit.addColorStop(1, 'rgba(255,248,232,0)');
+      g.fillStyle = lit;                         // a light somewhere above, as in any decent room
+      g.fillRect(0, 0, this.W, this.H);
+      g.save();                                  // the canvas throws a little shadow on the wall
+      g.shadowColor = 'rgba(0,0,0,.55)';
+      g.shadowBlur = Math.round(this.H * .05);
+      g.shadowOffsetY = Math.round(this.H * .016);
+      g.fillStyle = this.ground;
+      g.fillRect(rect.x, rect.y, rect.w, rect.h);
+      g.restore();
+    } else {
+      g.fillStyle = this.ground;
+      g.fillRect(0, 0, this.W, this.H);
+    }
+
     // the lay-in: masses and light only, far too soft to read as a photograph
     if (this.mips[3]) {
       g.globalAlpha = .34 * alpha;
@@ -232,7 +276,7 @@ export class Painter {
     if (tooth) {
       g.globalAlpha = .05 * alpha;
       g.fillStyle = this._tooth();
-      g.fillRect(0, 0, this.W, this.H);
+      framed ? g.fillRect(rect.x, rect.y, rect.w, rect.h) : g.fillRect(0, 0, this.W, this.H);
     }
     g.globalAlpha = 1;
   }
@@ -257,7 +301,9 @@ export class Painter {
   _buildPlan() {
     const rnd = mulberry32(this.seed);
     const rect = this._rect();
-    const min = Math.min(this.W, this.H);
+    const framed = this.fit === 'frame';
+    const field = framed ? rect : { x: 0, y: 0, w: this.W, h: this.H };
+    const min = framed ? Math.min(rect.w, rect.h) : Math.min(this.W, this.H);
     const xs = [], ys = [], an = [], sz = [], al = [], lm = [], lay = [];
     const bounds = [];
     const upscale = rect.w / (this.img?.naturalWidth || rect.w);
@@ -266,8 +312,9 @@ export class Painter {
 
     layers.forEach((L, li) => {
       const cell = Math.max(2, L.size * min);
-      // one cell of bleed on every side, so the picture runs off the edges
-      const nx = Math.ceil(this.W / cell) + 2, ny = Math.ceil(this.H / cell) + 2;
+      // one cell of bleed on every side, so the picture runs off its edges
+      const bleed = framed ? 0 : 1;
+      const nx = Math.ceil(field.w / cell) + bleed * 2, ny = Math.ceil(field.h / cell) + bleed * 2;
       const cells = nx * ny;
       const count = Math.round(cells * L.over);
       const start = xs.length;
@@ -279,8 +326,8 @@ export class Painter {
       }
       for (let k = 0; k < count; k++) {
         const c = order[k % cells];
-        const x = ((c % nx) + rnd() - 1) * cell;
-        const y = (Math.floor(c / nx) + rnd() - 1) * cell;
+        const x = field.x + ((c % nx) + rnd() - bleed) * cell;
+        const y = field.y + (Math.floor(c / nx) + rnd() - bleed) * cell;
         const u = (x - rect.x) / rect.w, v = (y - rect.y) / rect.h;
         let m = 0, a;
         if (this.grad) {
@@ -294,7 +341,7 @@ export class Painter {
         }
         if (L.detail && m < .5 && rnd() > 1 - L.detail) continue;   // spend the fine work on edges
         xs.push(x); ys.push(y);
-        an.push(a + (rnd() - .5) * .34);
+        an.push(a + (rnd() - .5) * (this.grad ? .34 : .9));
         sz.push(cell * lerp(.62, 1.62, Math.pow(rnd(), 1.7)));
         al.push(lerp(L.alpha[0], L.alpha[1], rnd()));
         lm.push(lerp(1.16, .66, clamp(m, 0, 1)));
@@ -408,10 +455,19 @@ export class Painter {
     if (this.drawn < this.target) {
       const budget = this.catchUp ? 11 : 6;
       const t0 = performance.now();
+      const R = this.plan.rect;
+      const framed = this.fit === 'frame';
+      if (framed) {                                  // keep the paint on the canvas, not the wall
+        this.ctx.save();
+        this.ctx.beginPath();
+        this.ctx.rect(R.x, R.y, R.w, R.h);
+        this.ctx.clip();
+      }
       while (this.drawn < this.target) {
         this._stroke(this.drawn++);
         if ((this.drawn & 63) === 0 && performance.now() - t0 > budget) break;
       }
+      if (framed) this.ctx.restore();
       if (this.drawn >= this.target) this.catchUp = false;
     }
 
@@ -445,6 +501,11 @@ export class Painter {
     const t = clamp(this.progress * 1.7, 0, 1);
     if (!im || !this.plan) return lerp(this.groundLuma, .45, t);
     const R = this.plan.rect, d = im.data;
+    // how much of this corner of the screen the picture actually occupies
+    const bw = (x1 - x0) * this.W, bh = (y1 - y0) * this.H;
+    const ox = Math.max(0, Math.min(x1 * this.W, R.x + R.w) - Math.max(x0 * this.W, R.x));
+    const oy = Math.max(0, Math.min(y1 * this.H, R.y + R.h) - Math.max(y0 * this.H, R.y));
+    const cover = clamp((ox * oy) / Math.max(1, bw * bh), 0, 1);
     const ux = v => clamp(Math.round(((v * this.W) - R.x) / R.w * im.width), 0, im.width - 1);
     const uy = v => clamp(Math.round(((v * this.H) - R.y) / R.h * im.height), 0, im.height - 1);
     const ax = ux(x0), bx = ux(x1), ay = uy(y0), by = uy(y1);
@@ -453,7 +514,8 @@ export class Painter {
       const p = (y * im.width + x) * 4;
       sum += (d[p] * .299 + d[p + 1] * .587 + d[p + 2] * .114) / 255; n++;
     }
-    return lerp(this.groundLuma, n ? sum / n : .45, t);
+    const lit = lerp(this.wallLuma ?? .1, n ? sum / n : .45, cover);
+    return lerp(this.groundLuma, lit, t);
   }
 
   zones() {
