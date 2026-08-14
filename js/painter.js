@@ -47,7 +47,6 @@ export class Painter {
     this.seed = 1;
     this.ground = '#141210';
     this.groundLuma = .1;
-    this.imageLuma = .5;
     this.accent = '#c9a227';
     this.accentHsl = [.116, .68, .53];
     this.lowMotion = reducedMotion();
@@ -73,11 +72,12 @@ export class Painter {
     return true;
   }
 
-  /** cover-fit the picture over the viewport */
+  /** cover-fit the picture over the viewport, with a little overscan —
+      museum photographs often carry a sliver of frame or mount at the edge */
   _rect() {
     const iw = this.img.naturalWidth || this.img.width;
     const ih = this.img.naturalHeight || this.img.height;
-    const s = Math.max(this.W / iw, this.H / ih);
+    const s = Math.max(this.W / iw, this.H / ih) * 1.035;
     const w = iw * s, h = ih * s;
     return { x: (this.W - w) / 2, y: (this.H - h) / 2, w, h };
   }
@@ -90,6 +90,7 @@ export class Painter {
     this.seed = hashStr(key || String(Math.random()));
     this._buildMips();
     this._readPixels();
+    this._gradients();
     this._analyse();
     this._buildPlan();
     this._gauge();
@@ -175,15 +176,14 @@ export class Painter {
     this.grad = { w, h, ang, mag };
   }
 
-  /** ground tone, overall key, and the accent the interface borrows */
+  /** the ground tone and the accent the interface borrows from the picture */
   _analyse() {
-    this._gradients();
     const im = this.data[3];
-    let r = 90, g = 84, b = 78, luma = .35;
+    let r = 90, g = 84, b = 78;
     if (im) {
       const d = im.data;
       let R = 0, G = 0, B = 0, n = 0;
-      const buckets = new Array(12).fill(0).map(() => ({ r:0, g:0, b:0, n:0, w:0 }));
+      const buckets = new Array(12).fill(0).map(() => ({ r:0, g:0, b:0, w:0 }));
       for (let p = 0; p < d.length; p += 4) {
         R += d[p]; G += d[p+1]; B += d[p+2]; n++;
         const mx = Math.max(d[p], d[p+1], d[p+2]), mn = Math.min(d[p], d[p+1], d[p+2]);
@@ -192,10 +192,9 @@ export class Painter {
         const bk = buckets[Math.min(11, Math.floor(hh * 12))];
         const weight = sat * sat * (1 - Math.abs(((mx + mn) / 510) - .5) * 1.2);
         bk.r += d[p] * weight; bk.g += d[p+1] * weight; bk.b += d[p+2] * weight;
-        bk.n++; bk.w += weight;
+        bk.w += weight;
       }
       r = R / n; g = G / n; b = B / n;
-      luma = (r * .299 + g * .587 + b * .114) / 255;
       const best = buckets.reduce((a, c) => (c.w > a.w ? c : a), buckets[0]);
       if (best.w > 0.4) {
         const [h, s, l] = rgbToHsl(best.r / best.w, best.g / best.w, best.b / best.w);
@@ -205,12 +204,9 @@ export class Painter {
         this.accentHsl = [.116, .68, .53];
         this.accent = hslToCss(...this.accentHsl);
       }
-      // centre of the picture, where the clock sits
-      this.imageLuma = centreLuma(im);
     } else {
       this.accentHsl = [.116, .68, .53];
       this.accent = hslToCss(...this.accentHsl);
-      this.imageLuma = .35;
     }
     // an imprimatura: the average, knocked back and desaturated
     const gr = [r, g, b].map(v => clamp(v * .52 + 12, 8, 190));
@@ -484,9 +480,11 @@ export class Painter {
       g.globalAlpha = .5; g.fillStyle = grd;
       g.fillRect(0, rnd() * 400, 900, 120 + rnd() * 260);
     }
-    const img = new Image();
-    img.onload = () => this.load(img, { tainted: false, key: 'fallback' + seed });
-    img.src = c.toDataURL();
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => { this.load(img, { tainted: false, key: 'fallback' + seed }); resolve(); };
+      img.src = c.toDataURL();
+    });
   }
 }
 
@@ -495,18 +493,7 @@ function flow(x, y, s) {
   return Math.sin(x / (s * .55)) * .9 + Math.cos(y / (s * .42)) * .8 + 0.5;
 }
 
-function centreLuma(im) {
-  const { width: w, height: h, data: d } = im;
-  let sum = 0, n = 0;
-  for (let y = Math.floor(h * .3); y < Math.ceil(h * .7); y++)
-    for (let x = Math.floor(w * .22); x < Math.ceil(w * .78); x++) {
-      const p = (y * w + x) * 4;
-      sum += (d[p] * .299 + d[p + 1] * .587 + d[p + 2] * .114) / 255; n++;
-    }
-  return n ? sum / n : .4;
-}
-
-export function rgbToHsl(r, g, b) {
+function rgbToHsl(r, g, b) {
   r /= 255; g /= 255; b /= 255;
   const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
   let h = 0, s = 0; const l = (mx + mn) / 2;
@@ -519,5 +506,5 @@ export function rgbToHsl(r, g, b) {
   return [h, s, l];
 }
 
-export const hslToCss = (h, s, l) =>
+const hslToCss = (h, s, l) =>
   `hsl(${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%)`;

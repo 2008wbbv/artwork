@@ -18,7 +18,7 @@ export class UI {
       rail: $('#rail-fill'), railBox: $('.rail'), start: $('#btn-start'),
       skip: $('#btn-skip'), reset: $('#btn-reset'), cycle: $('#cycle'),
       label: $('#wall-label'), title: $('#label-title'), artist: $('#label-artist'),
-      meta: $('#label-meta'), note: $('#label-note'), link: $('#label-link'),
+      meta: $('#label-meta'), note: $('#label-note'), more: $('#label-more'), link: $('#label-link'),
       museum: $('#label-museum'), chip: $('#playlist-chip'), chipName: $('#playlist-name'),
       chipGroup: $('#playlist-group'), drawer: $('#drawer'), scrim: $('#scrim'),
       toasts: $('#toasts'), intro: $('#intro'), np: $('#nowplaying'), npText: $('#np-text'),
@@ -56,12 +56,16 @@ export class UI {
   }
 
   setProgress(p) {
-    this.el.rail.style.width = (p * 100).toFixed(2) + '%';
+    const w = (p * 100).toFixed(2) + '%';
+    if (w === this._railW) return;
+    this._railW = w;
+    this.el.rail.style.width = w;
     this.el.railBox.setAttribute('aria-valuenow', Math.round(p * 100));
   }
 
   setState(timer) {
     this.el.shell.dataset.state = timer.state;
+    this.el.shell.dataset.phase = timer.phase;
     this.el.start.textContent =
       timer.state === 'running' ? 'Pause' :
       timer.state === 'paused' ? 'Resume' :
@@ -93,6 +97,7 @@ export class UI {
       const room = window.innerHeight > 720 && window.innerWidth > 760;
       L.note.textContent = room ? (art.note || '') : '';
       L.note.hidden = !L.note.textContent;
+      L.more.textContent = [art.dims, art.credit].filter(Boolean).join(' · ');
       L.museum.textContent = [art.museumShort, art.gallery].filter(Boolean).join(' · ');
       L.link.href = art.url;
       L.link.title = art.credit || art.museum;
@@ -118,7 +123,7 @@ export class UI {
   }
 
   setPlaylistChip(pl, count) {
-    this.el.chipGroup.textContent = count ? `${pl.group} · ${count}` : pl.group;
+    this.el.chipGroup.textContent = count === 0 ? `${pl.group} · …` : count ? `${pl.group} · ${count}` : pl.group;
     this.el.chipName.textContent = pl.name;
   }
 
@@ -133,7 +138,7 @@ export class UI {
   }
 
   unhush() {
-    this.el.shell.dataset.recede = '0';
+    if (this.el.shell.dataset.recede === '1') this.el.shell.dataset.recede = '0';
     this.armHush();
   }
 
@@ -309,6 +314,17 @@ export class UI {
         ${sw('set-grain', 'Film grain', '', s.grain)}
       </section>
       <section class="sect">
+        <h3 class="sect__head">Keys</h3>
+        <dl class="keys">
+          <dt><kbd>space</kbd></dt><dd>start · pause</dd>
+          <dt><kbd>s</kbd><kbd>r</kbd></dt><dd>skip the interval · reset it</dd>
+          <dt><kbd>n</kbd></dt><dd>another painting</dd>
+          <dt><kbd>m</kbd></dt><dd>radio on · off</dd>
+          <dt><kbd>p</kbd><kbd>b</kbd><kbd>,</kbd></dt><dd>playlists · badges · settings</dd>
+          <dt><kbd>esc</kbd></dt><dd>close this panel</dd>
+        </dl>
+      </section>
+      <section class="sect">
         <h3 class="sect__head">Sources</h3>
         <p class="sect__note">Pictures: the Art Institute of Chicago, the Metropolitan Museum of Art, and the Cleveland Museum of Art, through their open APIs — public-domain and CC0 works only. Sound: SomaFM and the Radio Browser index. Nothing you do here leaves your browser.</p>
         <button class="row" id="wipe"><i class="row__dot"></i><span class="row__text">
@@ -382,11 +398,13 @@ export class UI {
       window.addEventListener(ev, stir, { passive: true }));
 
     window.addEventListener('keydown', e => {
-      if (e.target.matches('input,textarea')) return;
       const k = e.key.toLowerCase();
-      if (k === 'escape') { this.closeDrawer(); return; }
+      if (k === 'escape') { this.closeDrawer(); return; }      // even from a focused slider
+      if (e.target.matches('input,textarea,select')) return;
       this.unhush();
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // space belongs to whatever button has focus, if any
+      if (k === ' ' && e.target.closest('button')) return;
       if (k === ' ') { e.preventDefault(); this.on.toggle?.(); }
       else if (k === 's') this.on.skip?.();
       else if (k === 'r') this.on.reset?.();
@@ -395,7 +413,7 @@ export class UI {
       else if (k === 'b') this.toggleDrawer('badges');
       else if (k === 'p') this.toggleDrawer('playlists');
       else if (k === ',') this.toggleDrawer('settings');
-      else if (k === '?') this.toast({ kicker: 'Keys', name: 'space · s · r · n · m · b · p · ,', seal: '⌘', ms: 6000 });
+      else if (k === '?' || k === '/') this.openDrawer('settings');
     });
   }
 

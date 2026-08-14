@@ -38,14 +38,19 @@ const OFFLINE_CARD = {
 };
 
 let swapping = false;        // holding the old picture while the next one loads
-let firstRun = !load('settings', null);
+let hanging = 0;             // only the most recent request gets to hang
+const firstRun = !load('settings', null);
 
 /* ------------------------------------------------ pictures */
 async function hang({ silent = false } = {}) {
+  const mine = ++hanging;
   swapping = true;
   const next = await gallery.advance();
+  if (mine !== hanging) return null;              // a later request overtook this one
+
   if (!next) {
-    painter.paintFallback(Date.now());
+    await painter.paintFallback(Date.now());
+    if (mine !== hanging) return null;
     ui.setAccent(painter.accentHsl);
     ui.showLabel(OFFLINE_CARD);
     if (!silent) ui.toast({ kicker: 'No signal', name: 'The collections are out of reach', seal: '⌾', ms: 5000 });
@@ -106,7 +111,7 @@ timer.oncomplete = ({ phase, minutes }) => {
 };
 
 /* ---------------------------------------------------- loop */
-let last = performance.now(), moodAt = 0;
+let last = performance.now(), scrimAt = 0;
 function frame(now) {
   const dt = Math.min(64, now - last);
   last = now;
@@ -121,8 +126,8 @@ function frame(now) {
   }
   painter.frame(dt);
 
-  if (now - moodAt > 800) {
-    moodAt = now;
+  if (now - scrimAt > 800) {
+    scrimAt = now;
     ui.setScrims(painter.zones());
   }
   requestAnimationFrame(frame);
@@ -172,7 +177,7 @@ ui.on = {
     if (key === 'labelOn') ui.showLabel(value ? gallery.current?.art : null);
     if (key === 'recede') value ? ui.armHush() : ui.unhush();
     if (['focusMin', 'shortMin', 'longMin'].includes(key) && timer.state === 'idle') {
-      timer.left = timer.duration;
+      timer.reset();                       // takes the new length; a running interval keeps its own
       ui.setClock(fmtClock(timer.left), timer.left);
     }
     if (key === 'longEvery') ui.drawCycle(timer);
@@ -187,8 +192,6 @@ radio.onchange = (r, err) => {
   ui.setRadioUI(r);
   if (err) ui.toast({ kicker: 'Sound', name: 'That station did not answer', seal: '⌾', ms: 4200 });
 };
-
-ledger.onunlock = () => {};
 
 /* --------------------------------------------------- boot */
 window.addEventListener('resize', debounce(() => painter.resize(), 220));

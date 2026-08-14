@@ -5,7 +5,6 @@ export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 export const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 export const lerp  = (a, b, t) => a + (b - a) * t;
 export const smoothstep = t => t * t * (3 - 2 * t);
-export const easeOut = t => 1 - Math.pow(1 - t, 3);
 
 /** deterministic prng — same seed, same painting, every time */
 export function mulberry32(seed) {
@@ -32,8 +31,6 @@ export function shuffle(arr, rnd = Math.random) {
   }
   return a;
 }
-
-export const pick = (arr, rnd = Math.random) => arr[Math.floor(rnd() * arr.length)];
 
 export function fmtClock(ms) {
   const total = Math.max(0, Math.round(ms / 1000));

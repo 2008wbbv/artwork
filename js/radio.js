@@ -78,6 +78,7 @@ export class Radio {
     this._fade = null;
     this._tryIdx = 0;
     this._told = null;
+    this._stopped = true;
     this.el.addEventListener('error', () => this._fallback());
     this.el.addEventListener('playing', () => { this.playing = true; this.onchange(this); });
     this.el.addEventListener('pause', () => { this.playing = false; this.onchange(this); });
@@ -94,10 +95,11 @@ export class Radio {
 
   async play(station) {
     const st = station || this.station || this.remembered();
-    const changing = st !== this.station;
+    const changing = st !== this.station || !this.el.getAttribute('src');
     this.station = st;
     this.s.stationId = st.id;
     this.s.station = st.src === 'rb' ? st : null;      // curated ones are found by id
+    this._stopped = false;
     if (changing) { this._tryIdx = 0; this._told = null; this.el.src = st.url; this.track = ''; }
     try {
       this.el.volume = 0;
@@ -112,6 +114,8 @@ export class Radio {
 
   stop({ fade = true } = {}) {
     clearInterval(this._poll); this._poll = null;
+    this._stopped = true;
+    // dropping the source raises an error event of its own; _fallback ignores it
     const done = () => { this.el.pause(); this.el.removeAttribute('src'); this.el.load(); this.playing = false; this.onchange(this); };
     if (!fade || this.el.paused) return done();
     this._to(0, 420, done);
@@ -145,6 +149,7 @@ export class Radio {
   }
 
   _fallback() {
+    if (this._stopped) return;
     const alts = this.station?.alts || [];
     if (this._tryIdx < alts.length) {
       this.el.src = alts[this._tryIdx++];

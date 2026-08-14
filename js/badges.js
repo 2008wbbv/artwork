@@ -66,7 +66,6 @@ export class Ledger {
   constructor() {
     this.stats = { ...blank(), ...load('stats', {}) };
     this.unlocked = new Set(load('badges', []));
-    this.onunlock = () => {};
   }
 
   save() { save('stats', this.stats); save('badges', [...this.unlocked]); }
@@ -119,7 +118,7 @@ export class Ledger {
       if (this.unlocked.has(b.id)) continue;
       if (this.value(b) >= b.target) { this.unlocked.add(b.id); fresh.push(b); }
     }
-    if (fresh.length) { this.save(); fresh.forEach(b => this.onunlock(b)); }
+    if (fresh.length) this.save();
     return fresh;
   }
 

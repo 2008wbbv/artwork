@@ -1,134 +1,93 @@
+<div align="center">
+
 # artwork
 
-A pomodoro timer where the background is a painting from a museum collection —
-and the painting **paints itself**, stroke by stroke, for exactly as long as the
-interval lasts. Twenty-five minutes of focus is twenty-five minutes of
-brushwork; the last details land as the clock reaches zero.
+**A pomodoro timer whose background is a museum painting — and the painting paints itself, stroke by stroke, for exactly as long as you work.**
 
-Everything runs in the browser. No server, no build step, no account, no
-tracking. Open `index.html` from any static host and it works.
+[![license](https://img.shields.io/badge/license-MIT-c9a227?style=flat-square)](LICENSE)
+[![no build step](https://img.shields.io/badge/build_step-none-c9a227?style=flat-square)](#run-it)
+![dependencies](https://img.shields.io/badge/dependencies-0-c9a227?style=flat-square)
+[![runs](https://img.shields.io/badge/runs-entirely_client--side-c9a227?style=flat-square)](#notes)
 
----
+<img src="docs/hero.jpg" alt="artwork running: a Turner painting of Venice, rendered in brushstrokes, with a 0:00 clock over it" width="100%">
+
+</div>
+
+Twenty-five minutes of focus is twenty-five minutes of brushwork. A toned ground goes down first, then a thin lay-in of the composition, then five passes: broad wash strokes sampled from a heavily blurred reduction of the picture, down to fine detail concentrated on the edges. Every stroke follows the local image gradient — the way a brush actually moves — and shortens where the picture has detail. The last few minutes glaze the real file on in thin increments, so it resolves exactly as the clock reaches zero.
+
+<img src="docs/stages.jpg" alt="the same painting at four stages of completion" width="100%">
+
+<sup>One interval, four moments: 6% · 30% · 62% · done. J. M. W. Turner, *Venice, from the Porch of Madonna della Salute*, ca. 1835 — The Met, gallery 808.</sup>
+
+## Run it
+
+Static files, no bundler, no dependencies. It just needs to be served over HTTP, because ES modules are.
+
+```bash
+git clone https://github.com/2008wbbv/artwork
+cd artwork
+python3 -m http.server 8000    # or: npx http-server
+```
+
+Then open `http://localhost:8000`. To publish, drop it on any static host — the included Actions workflow deploys to GitHub Pages once *Settings → Pages* is set to **GitHub Actions**.
 
 ## What's in it
 
-**The painting.** Each interval starts on a toned ground with a thin lay-in of
-the composition, then builds in five passes — broad wash strokes off a heavily
-blurred reduction of the picture, then progressively finer ones, each laid
-*along* the local edge direction the way a brush actually moves, shortened where
-the picture has detail. In the last few minutes a glaze of the real file brings
-it into focus. The whole schedule is stretched across the interval, and it is
-deterministic: resize the window, or swap the picture mid-session, and it
-replays instantly to exactly where you were.
+- **~30 playlists** by movement, artist, place, museum and curator's pick — Impressionism, the Dutch Golden Age, Ukiyo-e, Vienna 1900, Monet, Hokusai, Vermeer, Venice, Paris, The Sea.
+- **A wall label** for every picture: title, hand, date, medium, the museum's own note, and the gallery it's hanging in right now. Hover it for the credit line.
+- **Radio**, from SomaFM and the Radio Browser index, with what's playing right now. Ducks under the chime between intervals.
+- **23 badges**, awarded only for pictures you actually sat through — ten German painters, twenty Venices, five works by one hand, seven days running.
+- **An interface that gets out of the way.** After a few still seconds everything but the clock fades. The brightness under each cluster of type is measured live, and only that patch of picture is darkened, so the text never fights the painting.
 
-**Playlists.** Around thirty, grouped by *Curated* (The Ten, Blue Hour, Quiet
-Rooms, Still Life, Gardens), *Movements* (Impressionism, the Dutch Golden Age,
-Ukiyo-e, Baroque, Romanticism, Vienna 1900, American Light…), *Artists* (Monet,
-Van Gogh, Hokusai & Hiroshige, Vermeer, Turner, Sargent, Degas, Cassatt…),
-*Places* (Venice, Paris, Japan, The Sea, New York) and *Museums*. Each is a set
-of queries across three collections, merged, de-duplicated and shuffled;
-anything you've already been shown goes to the back of the queue.
+<img src="docs/playlists.jpg" alt="the playlist drawer" width="49%"> <img src="docs/badges.jpg" alt="the badge shelf" width="49%">
 
-**The wall label.** Title, hand, date, medium, where it is right now — down to
-the gallery number when the museum publishes one — and a link straight to the
-object page. Plus the museum's own note about the picture where there is one.
+## Pictures
 
-**Sound.** SomaFM's hand-programmed stations (Secret Agent, Ill Street Lounge,
-Sonic Universe, Bossa Beyond, Beat Blender, The Trip, Groove Salad, Drone Zone…)
-with what's playing right now, and a search across the Radio Browser community
-index for anything else in the same mood. The radio ducks under the chime
-between intervals.
+Three open collections. No keys, no accounts, no proxy — every request goes straight from your browser to the museum, and all three send permissive CORS headers.
 
-**Badges.** Twenty-three, awarded only for pictures you actually sat through —
-ten works by German painters (*Kunsthalle*), twenty pictures of Venice (*Acqua
-Alta*), fifteen Japanese ones (*The Floating World*), five by a single hand
-(*Deep Cut*), seven days running (*The Regular*), and so on.
+| Collection | Endpoint | Filter |
+|---|---|---|
+| [Art Institute of Chicago](https://api.artic.edu/docs/) | `api.artic.edu` | public domain only |
+| [The Metropolitan Museum of Art](https://metmuseum.github.io/) | `collectionapi.metmuseum.org` | `isPublicDomain` only |
+| [Cleveland Museum of Art](https://openaccess-api.clevelandart.org/) | `openaccess-api.clevelandart.org` | CC0 only |
 
-**Quiet by default.** After a few still seconds the interface recedes to almost
-nothing and leaves you with the clock and the picture; move the mouse and it
-comes back. Text never fights the painting: the brightness under each cluster of
-type is measured live and only the area beneath it is darkened.
+Responses are cached for the best part of a day. Pictures start from the museum's web-sized file and quietly upgrade to the press-quality one mid-interval when the connection looks willing — never on a metered or slow one.
 
 ## Keys
 
 | | |
 |---|---|
-| `space` | start / pause |
-| `s` | skip this interval |
-| `r` | reset it |
-| `n` | another painting |
-| `m` | radio on / off |
-| `p` `b` `,` | playlists · badges · settings |
-| `esc` | close the panel |
-
-## Running it
-
-It's a static site — no dependencies, no bundler.
-
-```bash
-python3 -m http.server 8000     # or: npx http-server
-open http://localhost:8000
-```
-
-ES modules need to be served over HTTP, so opening `index.html` straight off
-the filesystem won't work. To publish: any static host will do; the included
-GitHub Actions workflow deploys to GitHub Pages once Pages is set to *GitHub
-Actions* in the repository settings.
-
-## Where the pictures come from
-
-| Collection | API | Terms |
-|---|---|---|
-| [Art Institute of Chicago](https://api.artic.edu/docs/) | `api.artic.edu` | public-domain works only, CC0 metadata |
-| [The Metropolitan Museum of Art](https://metmuseum.github.io/) | `collectionapi.metmuseum.org` | `isPublicDomain` works only |
-| [Cleveland Museum of Art](https://openaccess-api.clevelandart.org/) | `openaccess-api.clevelandart.org` | CC0 works only |
-
-Sound comes from [SomaFM](https://somafm.com) — listener-supported and
-advert-free; if you leave it on all day, [chip
-in](https://somafm.com/support/) — and the [Radio
-Browser](https://www.radio-browser.info/) index.
-
-No keys, no accounts, no proxy: every request goes straight from your browser
-to the museum. All three send permissive CORS headers.
-
-## Typography
-
-The WeWork wordmark is set in **Apercu** (Colophon Foundry), which is licensed
-and can't ship in an open repo. The interface uses **Plus Jakarta Sans**, the
-closest freely-licensed relative — geometric grotesque, tall x-height, quiet
-personality — with **Instrument Serif** italic for titles, the way a wall label
-would set them. If you license Apercu, put it first in `--sans` at the top of
-`css/app.css` and everything follows.
-
-## Layout
-
-```
-index.html          markup only; everything else is injected
-css/app.css         one stylesheet, sectioned
-js/main.js          wiring
-  painter.js        the stroke engine
-  gallery.js        viewing order, image loading, caching
-  sources.js        the three museum adapters, normalised to one shape
-  playlists.js      the catalogue
-  timer.js          wall-clock pomodoro state machine
-  radio.js          stations, streaming, now-playing
-  badges.js         the ledger
-  ui.js             panels, labels, toasts, keys
-  sound.js          the chimes, synthesised
-  store.js          localStorage with a TTL cache
-  util.js           small shared helpers
-```
-
-Your settings, badges and statistics live in `localStorage` under `artwork.v1.*`
-and nowhere else. *Settings → Forget everything* clears the lot.
+| <kbd>space</kbd> | start · pause |
+| <kbd>s</kbd> <kbd>r</kbd> | skip the interval · reset it |
+| <kbd>n</kbd> | another painting |
+| <kbd>m</kbd> | radio on · off |
+| <kbd>p</kbd> <kbd>b</kbd> <kbd>,</kbd> | playlists · badges · settings |
 
 ## Notes
 
-- Museum responses are cached for the best part of a day, so re-opening a
-  playlist is instant and the APIs aren't hammered.
-- If a museum can't be reached, the timer carries on and paints a quiet
-  abstraction instead; pictures return by themselves when the network does.
-- The picture starts from the museum's web-sized file, and quietly upgrades to
-  the press-quality one mid-interval when the connection looks willing — never
-  on a metered or slow one.
-- `prefers-reduced-motion` drops the finest stroke pass and the cross-dissolve.
+- Nothing leaves the browser. Settings, badges and statistics live in `localStorage` under `artwork.v1.*`; *Settings → Forget everything* clears the lot.
+- The stroke plan is seeded and deterministic, so resizing the window — or swapping the picture mid-interval — replays instantly to exactly the same level of completion.
+- Offline, the timer carries on and paints a quiet abstraction instead. Pictures come back by themselves when the network does.
+- `prefers-reduced-motion` drops the finest stroke pass and the dissolve between pictures.
+
+```
+js/painter.js      the stroke engine
+js/gallery.js      viewing order, image loading, caching
+js/sources.js      three museum adapters, normalised to one shape
+js/playlists.js    the catalogue
+js/timer.js        wall-clock pomodoro state machine
+js/radio.js        stations, streaming, now-playing
+js/badges.js       the ledger
+js/ui.js           panels, labels, toasts, keys
+```
+
+## Credits
+
+- The three museums above, for putting their collections in the public domain and then publishing an API for them.
+- [SomaFM](https://somafm.com) — listener-supported, advert-free, hand-programmed. If you leave it on all day, [chip in](https://somafm.com/support/).
+- [Radio Browser](https://www.radio-browser.info/), a community index of everything else.
+- Type is [Plus Jakarta Sans](https://fonts.google.com/specimen/Plus+Jakarta+Sans) and [Instrument Serif](https://fonts.google.com/specimen/Instrument+Serif). The WeWork wordmark is Apercu, which is licensed and can't ship here — Plus Jakarta is the closest free relative. If you own Apercu, put it first in `--sans` at the top of `css/app.css` and everything follows.
+
+## License
+
+MIT. The code is yours to do as you like with. The paintings were already everyone's.

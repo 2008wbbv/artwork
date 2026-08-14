@@ -3,7 +3,7 @@
    warm, quietly skips anything that won't load, and remembers
    what you've already been shown.
    ============================================================ */
-import { runQuery, loadImage, bestWidth } from './sources.js';
+import { runQuery, loadImage, targetWidth } from './sources.js';
 import { load, save, cached } from './store.js';
 import { shuffle, pool } from './util.js';
 import { byId } from './playlists.js';
@@ -78,7 +78,7 @@ export class Gallery {
   /** next artwork with a decoded image, skipping anything broken */
   async advance() {
     if (!this.items.length) return null;
-    const w = bestWidth();
+    const w = targetWidth();
     for (let tries = 0; tries < 6; tries++) {
       this.i = (this.i + 1) % this.order.length;
       const art = this.items[this.order[this.i]];

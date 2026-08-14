@@ -112,6 +112,7 @@ a{color:inherit}
 .shell[data-recede="1"] .cycle{opacity:.16}
 .shell[data-recede="1"] .label{opacity:.34}
 .shell[data-recede="1"] .phase{opacity:.4}
+.shell[data-recede="1"]{cursor:none}
 .bar--top,.dock,.actions,.label,.phase,.cycle,.nowplaying{transition:opacity var(--slow) var(--ease)}
 
 /* ---------- top bar ---------- */
@@ -171,6 +172,11 @@ a{color:inherit}
   transition:background var(--slow) var(--ease);
 }
 
+/* the rest reads cooler than the work: no accent on the rail, a wider label */
+.shell[data-phase="short"] .rail i,.shell[data-phase="long"] .rail i,
+.shell[data-phase="short"] .rail i::after,.shell[data-phase="long"] .rail i::after{background:var(--ink-3)}
+.shell[data-phase="short"] .phase,.shell[data-phase="long"] .phase{letter-spacing:.52em;padding-left:.52em}
+
 .actions{display:flex;align-items:center;gap:.55rem;margin-top:.2rem}
 .btn{
   border:1px solid var(--line);border-radius:100px;
@@ -205,6 +211,12 @@ a{color:inherit}
 .label__artist{font-size:.735rem;font-weight:500;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-2);margin-top:.12rem!important}
 .label__meta,.label__note{font-size:.735rem;line-height:1.5;color:var(--ink-3)}
 .label__note{font-style:italic;font-family:var(--serif);font-size:.9rem;line-height:1.42;max-width:32ch}
+.label__more{
+  font-size:.685rem;line-height:1.5;color:var(--ink-3);
+  max-height:0;opacity:0;overflow:hidden;
+  transition:max-height 560ms var(--ease),opacity 340ms var(--ease);
+}
+.label:hover .label__more,.label:focus-within .label__more{max-height:7rem;opacity:1}
 .label__where{margin-top:.28rem!important}
 .label__where a{
   font-size:.7rem;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-2);
@@ -341,6 +353,16 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
 }
 .seg button:hover{color:var(--ink);background:var(--hover)}
 .seg button.is-on{background:var(--sheet-2);color:var(--ink);border-color:var(--ink-4)}
+
+/* keys */
+.keys{display:grid;grid-template-columns:auto 1fr;gap:.5rem .9rem;margin:0;align-items:baseline}
+.keys dt{display:flex;gap:.25rem}
+.keys kbd{
+  font-family:var(--sans);font-size:.63rem;letter-spacing:.04em;
+  padding:.18rem .42rem;border:1px solid var(--line);border-radius:3px;color:var(--ink-2);
+  min-width:1.5rem;text-align:center;
+}
+.keys dd{margin:0;font-size:.75rem;color:var(--ink-3)}
 
 /* ---------- badges ---------- */
 .badges{display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem}

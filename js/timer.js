@@ -3,7 +3,7 @@
    or a sleeping laptop can't make it drift.
    ============================================================ */
 
-export const PHASES = {
+const PHASES = {
   focus: { id: 'focus', label: 'Focus' },
   short: { id: 'short', label: 'Pause' },
   long:  { id: 'long',  label: 'Long pause' },
@@ -15,7 +15,8 @@ export class Timer {
     this.phase = 'focus';
     this.state = 'idle';               // idle · running · paused
     this.round = 0;                    // completed focus intervals in this set
-    this.left = this.lengthOf('focus');
+    this.span = this.lengthOf('focus'); // an interval keeps the length it began with
+    this.left = this.span;
     this.endAt = 0;
     this.startedAt = 0;
     this.onphase = () => {};
@@ -28,7 +29,7 @@ export class Timer {
     return Math.max(1, m) * 60000;
   }
 
-  get duration() { return this.lengthOf(this.phase); }
+  get duration() { return this.span; }
   get progress() { return 1 - this.left / this.duration; }
   get label() { return PHASES[this.phase].label; }
 
@@ -49,9 +50,10 @@ export class Timer {
 
   toggle() { this.state === 'running' ? this.pause() : this.start(); }
 
-  /** back to the top of the current interval, same picture */
+  /** back to the top of the current interval, same picture, current settings */
   reset() {
-    this.left = this.duration;
+    this.span = this.lengthOf(this.phase);
+    this.left = this.span;
     this.state = 'idle';
     this.onstate(this);
   }
@@ -80,7 +82,8 @@ export class Timer {
     if (completed) this.oncomplete({ phase: done, minutes: mins, next });
 
     this.phase = next;
-    this.left = this.duration;
+    this.span = this.lengthOf(next);
+    this.left = this.span;
     this.startedAt = Date.now();
     const auto = next === 'focus' ? this.s.autoFocus : this.s.autoBreak;
     this.state = completed && auto ? 'running' : 'idle';

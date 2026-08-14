@@ -6,7 +6,7 @@
    Each adapter returns the same shape so the rest of the app
    never has to know where a picture came from.
    ============================================================ */
-import { fetchJSON, pool, plain, shuffle, clamp } from './util.js';
+import { fetchJSON, pool, plain, shuffle } from './util.js';
 
 const NATIONS = ['French','Dutch','German','Italian','British','English','Scottish','Irish','American',
   'Spanish','Japanese','Chinese','Korean','Flemish','Belgian','Austrian','Russian','Swedish','Norwegian',
@@ -176,7 +176,7 @@ async function cmaSearch({ params = {}, limit = 40 }, signal) {
 }
 
 /* ---------------------------------------------------------- */
-export const SOURCES = {
+const SOURCES = {
   aic: { name: 'Art Institute of Chicago', run: aicSearch },
   met: { name: 'The Met', run: metSearch },
   cma: { name: 'Cleveland Museum of Art', run: cmaSearch },
@@ -212,4 +212,3 @@ export function loadImage(url) {
   });
 }
 
-export const bestWidth = () => clamp(targetWidth(), 843, 1686);
