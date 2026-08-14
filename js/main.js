@@ -162,6 +162,15 @@ ui.on = {
                seal: dir > 0 ? '+' : '−', ms: 2000 });
   },
   nextArt() { hang({ silent: true }); },
+  async showWork(art) {
+    swapping = true;
+    const next = await gallery.show(art);
+    swapping = false;
+    if (!next) return ui.toast({ kicker: 'Sorry', name: 'That one would not load', seal: '⌾', ms: 3500 });
+    painter.load(next.img, { tainted: next.tainted, key: next.art.key });
+    ui.setAccent(painter.accentHsl);
+    ui.showLabel(next.art);
+  },
   playlist(id) { ui.closeDrawer(); choosePlaylist(id); },
   toggleRadio() {
     sound.wake();

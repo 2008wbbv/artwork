@@ -33,8 +33,9 @@ Then open `http://localhost:8000`. To publish, drop it on any static host — th
 
 ## What's in it
 
-- **~30 playlists** by movement, artist, place, museum and curator's pick — Impressionism, the Dutch Golden Age, Ukiyo-e, Vienna 1900, Monet, Hokusai, Vermeer, Venice, Paris, The Sea.
+- **33 playlists** by movement, artist, place, museum and curator's pick — Impressionism, the Dutch Golden Age, Ukiyo-e, Vienna 1900, Monet, Hokusai, Vermeer, Venice, Paris, The Sea, The North.
 - **A wall label** for every picture: title, hand, date, medium, the museum's own note, and the gallery it's hanging in right now. Hover it for the credit line.
+- **The hand behind it.** Click the artist and you get a short life off Wikipedia — with their portrait, often a self-portrait, in a gilt frame — and everything else of theirs across the five collections. Click any of those and it goes up on the wall.
 - **Radio**, from SomaFM and the Radio Browser index, with what's playing right now. Ducks under the chime between intervals.
 - **23 badges**, awarded only for pictures you actually sat through — ten German painters, twenty Venices, five works by one hand, seven days running.
 - **Two ways to look.** *Fill* bleeds the picture off every edge; *Hang* fits the whole thing on a lit wall, which portrait paintings prefer.
@@ -49,13 +50,17 @@ Then open `http://localhost:8000`. To publish, drop it on any static host — th
 
 ## Pictures
 
-Three open collections. No keys, no accounts, no proxy — every request goes straight from your browser to the museum, and all three send permissive CORS headers.
+Five open collections. No keys, no accounts, no proxy — every request goes straight from your browser to the museum, and all five send permissive CORS headers.
 
 | Collection | Endpoint | Filter |
 |---|---|---|
 | [Art Institute of Chicago](https://api.artic.edu/docs/) | `api.artic.edu` | public domain only |
 | [The Metropolitan Museum of Art](https://metmuseum.github.io/) | `collectionapi.metmuseum.org` | `isPublicDomain` only |
 | [Cleveland Museum of Art](https://openaccess-api.clevelandart.org/) | `openaccess-api.clevelandart.org` | CC0 only |
+| [Victoria and Albert Museum](https://developers.vam.ac.uk/) | `api.vam.ac.uk` | made before 1920 |
+| [SMK — National Gallery of Denmark](https://www.smk.dk/en/article/smk-api/) | `api.smk.dk` | `public_domain` only |
+
+Artist lives and portraits come from the [Wikipedia REST API](https://en.wikipedia.org/api/rest_v1/).
 
 Responses are cached for the best part of a day. Pictures start from the museum's web-sized file and quietly upgrade to the press-quality one mid-interval when the connection looks willing — never on a metered or slow one.
 
@@ -80,7 +85,8 @@ Responses are cached for the best part of a day. Pictures start from the museum'
 ```
 js/painter.js      the stroke engine
 js/gallery.js      viewing order, image loading, caching
-js/sources.js      three museum adapters, normalised to one shape
+js/sources.js      five museum adapters, normalised to one shape
+js/artist.js       who painted it, and what else of theirs is hanging
 js/playlists.js    the catalogue
 js/timer.js        wall-clock pomodoro state machine
 js/radio.js        stations, streaming, now-playing
@@ -90,7 +96,8 @@ js/ui.js           panels, labels, toasts, keys
 
 ## Credits
 
-- The three museums above, for putting their collections in the public domain and then publishing an API for them.
+- The five museums above, for putting their collections in the public domain and then publishing an API for them.
+- [Wikipedia](https://en.wikipedia.org), for the lives.
 - [SomaFM](https://somafm.com) — listener-supported, advert-free, hand-programmed. If you leave it on all day, [chip in](https://somafm.com/support/).
 - [Radio Browser](https://www.radio-browser.info/), a community index of everything else.
 - Type is [Plus Jakarta Sans](https://fonts.google.com/specimen/Plus+Jakarta+Sans) and [Instrument Serif](https://fonts.google.com/specimen/Instrument+Serif). The WeWork wordmark is Apercu, which is licensed and can't ship here — Plus Jakarta is the closest free relative. If you own Apercu, put it first in `--sans` at the top of `css/app.css` and everything follows.

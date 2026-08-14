@@ -5,6 +5,7 @@ import { $, $$, escapeHtml, fmtDuration, reducedMotion } from './util.js';
 import { PLAYLISTS, GROUPS } from './playlists.js';
 import { STATIONS, DISCOVER_TAGS, discover } from './radio.js';
 import { BADGES } from './badges.js';
+import { profile, worksBy } from './artist.js';
 
 const HUSH_AFTER = 6200;
 
@@ -19,6 +20,7 @@ export class UI {
       skip: $('#btn-skip'), reset: $('#btn-reset'), cycle: $('#cycle'),
       label: $('#wall-label'), title: $('#label-title'), artist: $('#label-artist'),
       meta: $('#label-meta'), note: $('#label-note'), more: $('#label-more'), link: $('#label-link'),
+      artistTab: $('.tabs [data-tab="artist"]'),
       museum: $('#label-museum'), chip: $('#playlist-chip'), chipName: $('#playlist-name'),
       chipGroup: $('#playlist-group'), drawer: $('#drawer'), scrim: $('#scrim'),
       toasts: $('#toasts'), intro: $('#intro'), np: $('#nowplaying'), npText: $('#np-text'),
@@ -89,6 +91,8 @@ export class UI {
   /* --------------------------------------------- wall label */
   showLabel(art) {
     const L = this.el;
+    this._current = art;
+    if (L.artistTab) L.artistTab.hidden = !art?.artist || art.artist === 'Unknown';
     if (!art || !this.s.labelOn) { L.label.hidden = true; return; }
     L.label.hidden = false;
     L.label.dataset.fade = '1';
@@ -170,9 +174,67 @@ export class UI {
   showTab(tab) {
     $$('.tabs button').forEach(b => b.classList.toggle('is-on', b.dataset.tab === tab));
     $$('.panel').forEach(p => (p.hidden = p.dataset.panel !== tab));
+    if (tab === 'artist') this.renderArtist();
     if (tab === 'badges') this.renderBadges();
     if (tab === 'settings') this.renderSettings();
     if (tab === 'sound') this.renderSound();
+  }
+
+  /* --------------------------------------------- artist */
+  /** the hand behind the current picture: who they were, and what else is hanging */
+  openArtist(art) {
+    if (!art?.artist || art.artist === 'Unknown') return;
+    this._artist = art;
+    const tab = $('.tabs [data-tab="artist"]');
+    if (tab) tab.hidden = false;
+    this.openDrawer('artist');
+  }
+
+  async renderArtist() {
+    const art = this._artist;
+    const box = $('#panel-artist');
+    if (!art) { box.innerHTML = '<p class="sect__note">No hand recorded for this one.</p>'; return; }
+    const name = art.artist;
+    const life = [art.nationality, art.artistBio?.match(/\b(1[0-9]{3})[–-](1[0-9]{3})\b/)?.[0]]
+      .filter(Boolean).join(' · ');
+    box.innerHTML = `
+      <section class="sect artist">
+        <div class="frame frame--empty"><div class="frame__mat"><span>looking…</span></div></div>
+        <h3 class="artist__name">${escapeHtml(name)}</h3>
+        ${life ? `<p class="artist__life">${escapeHtml(life)}</p>` : ''}
+      </section>
+      <section class="sect"><h3 class="sect__head">Elsewhere in the collections</h3>
+        <p class="sect__note" id="works-note">Asking the five museums…</p>
+        <div class="works" id="works"></div>
+      </section>`;
+
+    const token = (this._artistToken = Symbol('artist'));
+    const [who, works] = await Promise.all([
+      profile(name).catch(() => null),
+      worksBy(name, art.key).catch(() => []),
+    ]);
+    if (token !== this._artistToken || this._artist !== art) return;   // they moved on
+
+    const head = $('.artist', box);
+    if (head) head.innerHTML = `
+      ${who?.face
+        ? `<div class="frame"><div class="frame__mat"><img src="${escapeHtml(who.face)}" alt="${escapeHtml(name)}" loading="lazy"></div></div>`
+        : `<div class="frame frame--empty"><div class="frame__mat"><span>no likeness</span></div></div>`}
+      <h3 class="artist__name">${escapeHtml(who?.name || name)}</h3>
+      <p class="artist__life">${escapeHtml(who?.line || life || 'Painter')}</p>
+      ${who?.bio ? `<p class="artist__bio">${escapeHtml(who.bio)}</p>` : ''}
+      ${who?.url ? `<a class="artist__more" href="${escapeHtml(who.url)}" target="_blank" rel="noopener noreferrer">Wikipedia ↗</a>` : ''}`;
+
+    this._works = works;
+    const note = $('#works-note'), grid = $('#works');
+    if (!grid) return;
+    if (!works.length) { note.textContent = 'Nothing else of theirs is open-licensed in these five.'; return; }
+    note.textContent = `${works.length} more, and any of them will do next.`;
+    grid.innerHTML = works.map((w, n) => `
+      <button class="work" data-work="${n}" title="${escapeHtml(w.title)} — ${escapeHtml(w.museumShort)}">
+        <img src="${escapeHtml(w.image(360))}" alt="" loading="lazy">
+        <b>${escapeHtml(w.title)}</b>
+      </button>`).join('');
   }
 
   /* ---------------------------------------------- toasts */
@@ -352,6 +414,7 @@ export class UI {
     E.reset.onclick = () => this.on.reset?.();
     E.chip.onclick = () => this.toggleDrawer('playlists');
     $('#btn-badges').onclick = () => this.toggleDrawer('badges');
+    this.el.artist.onclick = () => this.openArtist(this._current);
     $('#btn-settings').onclick = () => this.toggleDrawer('settings');
     $('#btn-next-art').onclick = e => {
       e.currentTarget.classList.remove('ico--spin');
@@ -376,6 +439,12 @@ export class UI {
         const adhoc = st.dataset.adhoc ? JSON.parse(st.dataset.adhoc) : null;
         this.on.station?.(st.dataset.station, adhoc);
         $$('[data-station]', E.drawer).forEach(r => r.classList.toggle('is-on', r === st));
+        return;
+      }
+      const work = e.target.closest('[data-work]');
+      if (work) {
+        const w = this._works?.[+work.dataset.work];
+        if (w) { this.closeDrawer(); this.on.showWork?.(w); }
         return;
       }
       const fit = e.target.closest('[data-fit]');

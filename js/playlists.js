@@ -70,6 +70,7 @@ export const PLAYLISTS = [
       { src:'aic', q:'ukiyo-e japanese woodblock print', limit:90 },
       { src:'met', params:{ q:'ukiyo-e', medium:'Prints' }, take:30 },
       { src:'cma', params:{ q:'ukiyo-e', department:'Japanese Art' }, limit:30 },
+      { src:'vam', params:{ q:'Japanese woodblock print' }, limit:30 },
     ]},
 
   { id:'baroque', group:'Movements', name:'Baroque & Candlelight', note:'High drama, deep shadow, a single unforgiving light source.',
@@ -83,6 +84,7 @@ export const PLAYLISTS = [
     tags:['romanticism'], queries:[
       { src:'aic', q:'romanticism storm shipwreck ruins sublime landscape', types:['Painting'], limit:80 },
       { src:'met', params:{ q:'romanticism', medium:'Paintings', dateBegin:'1790', dateEnd:'1870' }, take:28 },
+      { src:'vam', params:{ q:'storm sublime landscape', year_made_to:'1880' }, limit:26 },
     ]},
 
   { id:'vienna-1900', group:'Movements', name:'Vienna 1900', note:'Secession, gold leaf, and the nervous edge of a century.',
@@ -132,6 +134,7 @@ export const PLAYLISTS = [
       { src:'met', params:{ q:'Joseph Mallord William Turner', artistOrCulture:'true' }, take:24 },
       { src:'aic', q:'Turner watercolour english landscape', limit:60 },
       { src:'cma', params:{ artists:'Joseph Mallord William Turner' }, limit:20 },
+      { src:'vam', params:{ q:'Turner' }, limit:24 },
     ]},
 
   { id:'sargent', group:'Artists', name:'John Singer Sargent', note:'Society portraits by day; watercolour holidays by afternoon.',
@@ -167,6 +170,7 @@ export const PLAYLISTS = [
       { src:'aic', q:'Venice Venetian canal lagoon', limit:80 },
       { src:'met', params:{ q:'Venice', medium:'Paintings|Drawings|Watercolors' }, take:30 },
       { src:'cma', params:{ q:'venice' }, limit:30 },
+      { src:'vam', params:{ q:'Venice' }, limit:30 },
     ]},
 
   { id:'paris', group:'Places', name:'Paris', note:'Boulevards in the rain, and everybody at the café.',
@@ -188,6 +192,14 @@ export const PLAYLISTS = [
       { src:'aic', q:'sea coast wave shore marine ship', types:['Painting'], limit:80 },
       { src:'met', params:{ q:'seascape', medium:'Paintings' }, take:28 },
       { src:'cma', params:{ q:'sea coast', type:'Painting' }, limit:30 },
+      { src:'smk', params:{ keys:'hav kyst skib' }, limit:26 },
+    ]},
+
+  { id:'the-north', group:'Places', name:'The North', note:'Nordic light: long shadows, cold water, low sun.',
+    tags:['nordic'], queries:[
+      { src:'smk', params:{ keys:'landskab' }, limit:40 },
+      { src:'smk', params:{ keys:'skagen' }, limit:20 },
+      { src:'met', params:{ q:'Scandinavian landscape', medium:'Paintings' }, take:20 },
     ]},
 
   { id:'new-york', group:'Places', name:'New York', note:'The city painted while it was still being built.',
@@ -210,6 +222,16 @@ export const PLAYLISTS = [
   { id:'museum-cma', group:'Museums', name:'Cleveland Museum of Art', note:'Free to all, since 1916 — and open-licensed since 2019.',
     tags:['cma'], rand:true, queries:[
       { src:'cma', params:{ type:'Painting' }, limit:50 },
+    ]},
+
+  { id:'museum-vam', group:'Museums', name:'The V&A', note:'South Kensington: the world’s largest museum of applied art.',
+    tags:['vam'], rand:true, queries:[
+      { src:'vam', params:{ q:'painting watercolour', year_made_to:'1910' }, limit:50 },
+    ]},
+
+  { id:'museum-smk', group:'Museums', name:'SMK, Copenhagen', note:'The Danish national gallery, open-licensed and Nordic to the bone.',
+    tags:['smk'], rand:true, queries:[
+      { src:'smk', params:{ keys:'maleri' }, limit:50 },
     ]},
 ];
 

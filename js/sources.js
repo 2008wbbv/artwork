@@ -175,11 +175,117 @@ async function cmaSearch({ params = {}, limit = 40 }, signal) {
   return (j.data || []).map(fromCMA).filter(Boolean);
 }
 
+/* ---------------------------------------------------------- V&A */
+const VAM_KIND = /painting|watercolour|water-colour|drawing|print|gouache|tempera|miniature|etching|engraving|lithograph|woodblock|woodcut/i;
+const VAM_FLIP = n => (n && n.includes(',') ? n.split(',').map(x => x.trim()).reverse().join(' ') : n || '');
+
+function fromVAM(d) {
+  const base = d._images?._iiif_image_base_url;
+  if (!base) return null;
+  const maker = VAM_FLIP(d._primaryMaker?.name);
+  return finish({
+    key: 'vam:' + d.systemNumber,
+    src: 'vam',
+    museum: 'Victoria and Albert Museum',
+    museumShort: 'The V&A',
+    city: 'London',
+    title: d._primaryTitle || d.objectType || 'Untitled',
+    artist: maker || 'Unknown',
+    artistBio: [maker, d._primaryPlace].filter(Boolean).join(', '),
+    date: d._primaryDate || '',
+    medium: d.objectType || '',
+    dims: '',
+    credit: d._currentLocation?.displayName || '',
+    place: d._primaryPlace || '',
+    culture: '',
+    style: '',
+    classification: d.objectType || '',
+    department: '',
+    gallery: d._currentLocation?.displayName || '',
+    note: '',
+    alt: [d._primaryTitle, maker].filter(Boolean).join(', '),
+    url: `https://collections.vam.ac.uk/item/${d.systemNumber}/`,
+    lqip: '',
+    ratio: 0,
+    image: w => `${base}full/!${w},${w}/0/default.jpg`,
+    hiRes: `${base}full/!2400,2400/0/default.jpg`,
+  });
+}
+
+async function vamSearch({ params = {}, limit = 45 }, signal) {
+  const p = new URLSearchParams({
+    images_exist: '1', page_size: String(limit), response_format: 'json',
+    year_made_to: '1920', ...params,
+  });
+  const j = await fetchJSON(`https://api.vam.ac.uk/v2/objects/search?${p}`, { signal });
+  return (j.records || []).map(fromVAM).filter(Boolean).filter(a => VAM_KIND.test(a.classification));
+}
+
+/* ---------------------------------------------------------- SMK */
+const DANISH = { Dansk:'Danish', Italiensk:'Italian', Fransk:'French', Tysk:'German', Hollandsk:'Dutch',
+  Nederlandsk:'Dutch', Engelsk:'British', Britisk:'British', Spansk:'Spanish', Flamsk:'Flemish',
+  Norsk:'Norwegian', Svensk:'Swedish', Belgisk:'Belgian', Østrigsk:'Austrian', Russisk:'Russian',
+  Amerikansk:'American', Japansk:'Japanese', Schweizisk:'Swiss', Polsk:'Polish' };
+
+function fromSMK(d) {
+  const iiif = d.image_iiif_id;
+  const flat = d.image_thumbnail || d.image_native;
+  if ((!iiif && !flat) || d.public_domain === false) return null;
+  if (!iiif && +(d.image_width || 0) < 800) return null;      // a thumbnail is not a painting
+  const maker = (d.production || [])[0] || {};
+  const name = maker.creator_forename && maker.creator_surname
+    ? `${maker.creator_forename} ${maker.creator_surname}`
+    : (maker.creator || '').split(',').map(x => x.trim()).reverse().join(' ');
+  const titles = d.titles || [];
+  const t = titles.find(x => x.language === 'engelsk') || titles[0] || {};
+  const life = [maker.creator_date_of_birth, maker.creator_date_of_death]
+    .map(x => (x ? String(x).slice(0, 4) : '')).filter(Boolean).join('–');
+  return finish({
+    key: 'smk:' + d.object_number,
+    src: 'smk',
+    museum: 'Statens Museum for Kunst',
+    museumShort: 'SMK, Copenhagen',
+    city: 'Copenhagen',
+    title: (t.title || 'Uden titel').slice(0, 160),
+    artist: name || 'Unknown',
+    artistBio: [name, life].filter(Boolean).join(', '),
+    nationality: DANISH[maker.creator_nationality] || '',
+    date: (d.production_date || [])[0]?.period || '',
+    medium: (d.techniques || [])[0] || (d.object_names || [])[0]?.name || '',
+    dims: '',
+    credit: d.credit_line || '',
+    place: '',
+    culture: DANISH[maker.creator_nationality] || maker.creator_nationality || '',
+    style: '',
+    classification: (d.object_names || [])[0]?.name || '',
+    department: d.responsible_department || '',
+    gallery: d.current_location_name || '',
+    note: '',
+    alt: [t.title, name].filter(Boolean).join(', '),
+    url: `https://open.smk.dk/artwork/image/${d.object_number}`,
+    lqip: '',
+    ratio: +d.image_width && +d.image_height ? +d.image_width / +d.image_height : 0,
+    image: w => (iiif ? `${iiif}/full/!${w},/0/default.jpg` : flat),
+    hiRes: iiif ? `${iiif}/full/!2600,/0/default.jpg` : '',
+  });
+}
+
+async function smkSearch({ params = {}, limit = 40 }, signal) {
+  const p = new URLSearchParams({
+    keys: '*', filters: '[has_image:true],[public_domain:true]',
+    offset: '0', rows: String(limit), lang: 'en', ...params,
+  });
+  const j = await fetchJSON(`https://api.smk.dk/api/v1/art/search/?${p}`, { signal });
+  return (j.items || []).map(fromSMK).filter(Boolean);
+}
+
 /* ---------------------------------------------------------- */
 const SOURCES = {
   aic: { name: 'Art Institute of Chicago', run: aicSearch },
   met: { name: 'The Met', run: metSearch },
   cma: { name: 'Cleveland Museum of Art', run: cmaSearch },
+  vam: { name: 'Victoria and Albert Museum', run: vamSearch },
+  smk: { name: 'Statens Museum for Kunst', run: smkSearch },
 };
 
 /** run one query spec from a playlist */

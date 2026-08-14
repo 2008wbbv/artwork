@@ -112,6 +112,18 @@ export class Gallery {
     }).catch(() => {});
   }
 
+  /** put a specific picture up, wherever it came from */
+  async show(art) {
+    try {
+      const w = targetWidth();
+      const { img, tainted } = await loadImage(art.image(w));
+      this.current = { art, img, tainted };
+      this.markSeen(art.key);
+      this._upgrade(this.current, img.naturalWidth || 0);
+      return this.current;
+    } catch { return null; }
+  }
+
   _warmNext(w) {
     const nxt = this.items[this.order[(this.i + 1) % this.order.length]];
     if (!nxt) return;

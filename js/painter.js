@@ -424,19 +424,29 @@ export class Painter {
     return out;
   }
 
-  /** the outline of a loaded brush — fat through the belly, tapering to the
-      tips — for the part of the path between t0 and t1 */
-  _outline(g, segs, wid, blunt, t0 = 0, t1 = 1) {
-    const n = Math.max(2, Math.ceil((t1 - t0) * segs * 1.6));
+  /** the outline of a loaded brush: the belly sits early, where it landed
+      with the most paint, the edges are never quite even, and the ends are
+      chiselled off the way a flat brush leaves them. */
+  _outline(g, segs, wid, blunt, ph = 0, t0 = 0, t1 = 1) {
+    const n = Math.max(3, Math.ceil((t1 - t0) * segs * 2.2));
     const ax = [], ay = [], bx = [], by = [];
     const p = [0, 0, 0];
+    const chisel = (((ph * 7) % 1) - .5) * .9;
     for (let j = 0; j <= n; j++) {
       const t = t0 + (t1 - t0) * (j / n);
       this._at(segs, t, p);
-      const half = wid * .5 * (blunt + (1 - blunt) * Math.pow(Math.sin(Math.PI * t), .55));
-      const ox = -Math.sin(p[2]) * half, oy = Math.cos(p[2]) * half;
-      ax[j] = p[0] + ox; ay[j] = p[1] + oy;
-      bx[j] = p[0] - ox; by[j] = p[1] - oy;
+      const body = blunt + (1 - blunt) * Math.pow(Math.sin(Math.PI * Math.pow(t, .72)), .5);
+      const wobA = 1 + .17 * Math.sin(t * 9.3 + ph) + .085 * Math.sin(t * 23.7 + ph * 1.7);
+      const wobB = 1 + .17 * Math.sin(t * 8.1 + ph * 2.3 + 2) + .085 * Math.sin(t * 21.3 + ph);
+      const half = wid * .5 * body;
+      const sx = -Math.sin(p[2]), sy = Math.cos(p[2]);
+      const cx = Math.cos(p[2]), cy = Math.sin(p[2]);
+      // the tips are cut at an angle, not squared off
+      const lead = (j === 0 ? -1 : j === n ? 1 : 0) * half * chisel;
+      ax[j] = p[0] + sx * half * wobA + cx * lead;
+      ay[j] = p[1] + sy * half * wobA + cy * lead;
+      bx[j] = p[0] - sx * half * wobB - cx * lead;
+      by[j] = p[1] - sy * half * wobB - cy * lead;
     }
     g.beginPath();
     g.moveTo(ax[0], ay[0]);
@@ -486,12 +496,13 @@ export class Painter {
     const wid = s * L.wide;
     const segs = this._path(x, y, P.an[i], len, L.segs);
     const blunt = lerp(L.blunt[0], L.blunt[1], (i % 5) / 4);   // a broad brush lays bands, a fine one points
+    const ph = (i % 23) * .41;                                 // this brush's own irregularities
     const t = clamp(upTo, .02, 1);
     const box = this._box(segs, wid);
 
     if (this.tainted) {                                   // no pixel access: reveal through the shape
       g.save();
-      this._outline(g, segs, wid, blunt, 0, t);
+      this._outline(g, segs, wid, blunt, ph, 0, t);
       g.clip();
       g.globalAlpha = P.al[i];
       g.drawImage(this.mips[L.mip], P.rect.x, P.rect.y, P.rect.w, P.rect.h);
@@ -514,12 +525,12 @@ export class Painter {
     if (L.halo) {                                         // the broad passages sit in a wash
       g.globalAlpha = P.al[i] * L.halo;
       g.fillStyle = paint;
-      this._outline(g, segs, wid * 1.5, .55, 0, t);
+      this._outline(g, segs, wid * 1.5, .55, ph + 1.9, 0, t);
       g.fill();
     }
     g.globalAlpha = P.al[i];
     g.fillStyle = paint;
-    this._outline(g, segs, wid, blunt, 0, t);
+    this._outline(g, segs, wid, blunt, ph, 0, t);
     g.fill();
 
     if (L.bristle && wid > 5) this._bristles(g, segs, wid, L.bristle, r, gg, b, P.al[i], i, t);

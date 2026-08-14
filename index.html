@@ -60,7 +60,7 @@
     <figure class="label" id="wall-label" hidden>
       <figcaption>
         <p class="label__title" id="label-title"></p>
-        <p class="label__artist" id="label-artist"></p>
+        <p class="label__artist"><button id="label-artist" title="About the artist"></button></p>
         <p class="label__meta" id="label-meta"></p>
         <p class="label__note" id="label-note"></p>
         <p class="label__more" id="label-more"></p>
@@ -78,7 +78,7 @@
 
       <nav class="dock" aria-label="Controls">
       <button class="ico" id="btn-next-art" title="Another painting (N)" aria-label="Another painting">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17.5c3.2-9 6.4-9 8.6-4.5s5.4 4.5 7.4-2.2"/><path d="M17.4 3.6 20.8 7l-3.4 3.4"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 5.2h11.3a1.7 1.7 0 0 1 1.7 1.7v10"/><rect x="3.2" y="8.4" width="14" height="11.4" rx="1.6"/><path d="M5.6 17.2 9.3 12.9l2.5 2.8 1.6-1.8 3.2 3.9"/><circle cx="12.9" cy="11.6" r="1.15"/></svg>
       </button>
       <button class="ico" id="btn-sound" title="Sound (M) — right-click for stations" aria-label="Sound">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.4L12 5.6v12.8L7.4 14.5H4z"/><path class="wave1" d="M15.6 9.4a4 4 0 0 1 0 5.2"/><path class="wave2" d="M18.4 6.9a7.6 7.6 0 0 1 0 10.2"/></svg>
@@ -102,6 +102,7 @@
     <nav class="tabs" id="tabs">
       <button data-tab="playlists" class="is-on">Playlists</button>
       <button data-tab="sound">Sound</button>
+      <button data-tab="artist" hidden>Artist</button>
       <button data-tab="badges">Badges</button>
       <button data-tab="settings">Settings</button>
     </nav>
@@ -112,6 +113,7 @@
   <div class="drawer__body">
     <div class="panel" data-panel="playlists" id="panel-playlists"></div>
     <div class="panel" data-panel="sound" id="panel-sound" hidden></div>
+    <div class="panel" data-panel="artist" id="panel-artist" hidden></div>
     <div class="panel" data-panel="badges" id="panel-badges" hidden></div>
     <div class="panel" data-panel="settings" id="panel-settings" hidden></div>
   </div>

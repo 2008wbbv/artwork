@@ -227,7 +227,13 @@ a{color:inherit}
 .label p{margin:0}
 .label__title{font-family:var(--serif);font-style:italic;font-size:1.32rem;line-height:1.16;letter-spacing:.004em}
 .label,.nowplaying,.dock{text-shadow:0 1px 12px rgba(8,7,6,.5)}
-.label__artist{font-size:.735rem;font-weight:500;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-2);margin-top:.12rem!important}
+.label__artist{margin-top:.12rem!important}
+.label__artist button{
+  font-size:.735rem;font-weight:500;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-2);
+  text-align:left;padding:0;border-bottom:1px solid transparent;
+  transition:color var(--fast) var(--ease),border-color var(--fast) var(--ease);
+}
+.label__artist button:hover{color:var(--ink);border-color:var(--accent)}
 .label__meta,.label__note{font-size:.735rem;line-height:1.5;color:var(--ink-3)}
 .label__note{font-style:italic;font-family:var(--serif);font-size:.9rem;line-height:1.42;max-width:32ch}
 .label__more{
@@ -295,13 +301,14 @@ a{color:inherit}
 }
 .drawer[data-open="1"]{transform:none}
 .drawer__head{
-  display:flex;align-items:center;justify-content:space-between;gap:.5rem;
-  padding:1.1rem 1.15rem .9rem 1.5rem;border-bottom:1px solid var(--line-2);
+  display:flex;align-items:center;justify-content:space-between;gap:.35rem;
+  padding:1.1rem 1rem .9rem 1.15rem;border-bottom:1px solid var(--line-2);
 }
 .tabs{display:flex;gap:.1rem;flex-wrap:wrap}
 .tabs button{
-  padding:.4rem .62rem;border-radius:100px;font-size:.7rem;letter-spacing:.11em;text-transform:uppercase;
-  color:var(--ink-3);font-weight:500;transition:color var(--fast) var(--ease),background var(--fast) var(--ease);
+  padding:.38rem .52rem;border-radius:100px;font-size:.66rem;letter-spacing:.07em;text-transform:uppercase;
+  white-space:nowrap;color:var(--ink-3);font-weight:500;
+  transition:color var(--fast) var(--ease),background var(--fast) var(--ease);
 }
 .tabs button:hover{color:var(--ink-2)}
 .tabs button.is-on{color:var(--ink);background:var(--sheet-2)}
@@ -386,6 +393,45 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
   min-width:1.5rem;text-align:center;
 }
 .keys dd{margin:0;font-size:.75rem;color:var(--ink-3)}
+
+/* ---------- the artist ---------- */
+.artist{display:flex;flex-direction:column;align-items:center;text-align:center;gap:.1rem}
+.frame{
+  width:min(62%,196px);padding:9px;margin-bottom:1rem;border-radius:2px;
+  background:linear-gradient(148deg,#7d6124 0%,#e0c169 16%,#a9862f 34%,#f2dfa2 50%,#9a782b 66%,#dcbe68 84%,#75591f 100%);
+  box-shadow:0 14px 30px rgba(0,0,0,.55),inset 0 0 0 1px rgba(255,243,209,.4),0 0 0 1px rgba(0,0,0,.45);
+}
+.frame__mat{
+  padding:7px;background:linear-gradient(#eee5d2,#dcd0b7);
+  box-shadow:inset 0 2px 7px rgba(0,0,0,.4);
+}
+.frame img{
+  display:block;width:100%;aspect-ratio:4/5;object-fit:cover;object-position:top center;
+  filter:sepia(.14) contrast(1.04) brightness(.98);
+  box-shadow:0 0 0 1px rgba(0,0,0,.4);
+}
+.frame--empty .frame__mat{display:grid;place-items:center;aspect-ratio:4/5}
+.frame--empty span{font-family:var(--serif);font-style:italic;font-size:.8rem;color:#8a7f68}
+.artist__name{font-family:var(--serif);font-size:1.5rem;line-height:1.1;margin:0}
+.artist__life{font-size:.62rem;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-3);margin:.45rem 0 0}
+.artist__bio{font-size:.8rem;line-height:1.6;color:var(--ink-2);margin:1rem 0 0;text-align:left}
+.artist__more{
+  display:inline-block;margin-top:.9rem;font-size:.66rem;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--ink-3);text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:.15em;
+}
+.artist__more:hover{color:var(--ink);border-color:var(--accent)}
+
+.works{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem}
+.work{display:flex;flex-direction:column;gap:.3rem;text-align:left;padding:0}
+.work img{
+  width:100%;aspect-ratio:1;object-fit:cover;border-radius:2px;background:var(--sheet-2);
+  box-shadow:0 3px 12px rgba(0,0,0,.45),inset 0 0 0 1px rgba(255,255,255,.06);
+  transition:transform var(--mid) var(--ease),box-shadow var(--mid) var(--ease);
+}
+.work:hover img{transform:translateY(-3px);box-shadow:0 8px 20px rgba(0,0,0,.55)}
+.work b{font-size:.6rem;font-weight:400;line-height:1.35;color:var(--ink-3);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.work:hover b{color:var(--ink-2)}
 
 /* ---------- badges ---------- */
 .badges{display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem}
