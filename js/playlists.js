@@ -16,6 +16,11 @@ export const PLAYLISTS = [
       { src:'met', params:{ isHighlight:'true', medium:'Paintings', q:'painting' }, take:30 },
     ]},
 
+  { id:'sum-of-paintings', group:'Curated', name:'The Sum of All Paintings', note:'The great houses of Europe, by way of Wikidata and Wikimedia Commons.',
+    tags:['highlight'], rand:true, queries:[
+      { src:'wd', filter:'VALUES ?coll { wd:Q190804 wd:Q160112 wd:Q19675 wd:Q180788 wd:Q51252 wd:Q132783 wd:Q23402 wd:Q95569 wd:Q221092 } ?item wdt:P195 ?coll .', limit:50 },
+    ]},
+
   { id:'blue-hour', group:'Curated', name:'Blue Hour', note:'Nocturnes, moonlight, lamplit windows — painting after dark.',
     tags:['night'], queries:[
       { src:'aic', q:'nocturne night moonlight', types:['Painting'], limit:80 },
@@ -50,6 +55,7 @@ export const PLAYLISTS = [
       { src:'aic', q:'impressionism impressionist', types:['Painting'], limit:90 },
       { src:'met', params:{ q:'impressionism', medium:'Paintings', dateBegin:'1860', dateEnd:'1910' }, take:30 },
       { src:'cma', params:{ q:'impressionism', type:'Painting' }, limit:30 },
+      { src:'wd', filter:'?item wdt:P135 wd:Q40415 .', limit:40 },
     ]},
 
   { id:'post-impressionism', group:'Movements', name:'After the Impression', note:'Van Gogh, Cézanne, Gauguin — colour let off the leash.',
@@ -63,6 +69,7 @@ export const PLAYLISTS = [
       { src:'aic', q:'dutch seventeenth century rembrandt hals', types:['Painting'], limit:80 },
       { src:'met', params:{ q:'Dutch', medium:'Paintings', dateBegin:'1600', dateEnd:'1700' }, take:32 },
       { src:'cma', params:{ q:'dutch', type:'Painting', created_after:'1600', created_before:'1700' }, limit:30 },
+      { src:'wd', filter:'?item wdt:P135 wd:Q1474884 .', limit:40 },
     ]},
 
   { id:'ukiyo-e', group:'Movements', name:'The Floating World', note:'Ukiyo-e — Edo woodblock, cut and printed by hand.',
@@ -106,6 +113,7 @@ export const PLAYLISTS = [
       { src:'aic', q:'Claude Monet', types:['Painting'], limit:60 },
       { src:'met', params:{ q:'Claude Monet', artistOrCulture:'true' }, take:26 },
       { src:'cma', params:{ artists:'Claude Monet' }, limit:20 },
+      { src:'wd', filter:'?item wdt:P170 wd:Q296 .', limit:36 },
     ]},
 
   { id:'van-gogh', group:'Artists', name:'Vincent van Gogh', note:'Ten years of painting, most of it in the last four.',
@@ -113,6 +121,7 @@ export const PLAYLISTS = [
       { src:'aic', q:'Vincent van Gogh', limit:60 },
       { src:'met', params:{ q:'Vincent van Gogh', artistOrCulture:'true' }, take:26 },
       { src:'cma', params:{ artists:'Vincent van Gogh' }, limit:20 },
+      { src:'wd', filter:'?item wdt:P170 wd:Q5582 .', limit:36 },
     ]},
 
   { id:'hokusai', group:'Artists', name:'Hokusai & Hiroshige', note:'Fuji from thirty-six angles; the road east in fifty-three stops.',
@@ -127,6 +136,7 @@ export const PLAYLISTS = [
       { src:'met', params:{ q:'Johannes Vermeer', artistOrCulture:'true' }, take:14 },
       { src:'met', params:{ q:'Pieter de Hooch Gerard ter Borch', medium:'Paintings' }, take:22 },
       { src:'aic', q:'vermeer de hooch dutch interior', types:['Painting'], limit:50 },
+      { src:'wd', filter:'?item wdt:P170 wd:Q41264 .', limit:24 },
     ]},
 
   { id:'turner', group:'Artists', name:'J. M. W. Turner', note:'Light dissolving everything it touches, including the ship.',
@@ -135,6 +145,7 @@ export const PLAYLISTS = [
       { src:'aic', q:'Turner watercolour english landscape', limit:60 },
       { src:'cma', params:{ artists:'Joseph Mallord William Turner' }, limit:20 },
       { src:'vam', params:{ q:'Turner' }, limit:24 },
+      { src:'wd', filter:'?item wdt:P170 wd:Q159758 .', limit:36 },
     ]},
 
   { id:'sargent', group:'Artists', name:'John Singer Sargent', note:'Society portraits by day; watercolour holidays by afternoon.',
@@ -171,6 +182,7 @@ export const PLAYLISTS = [
       { src:'met', params:{ q:'Venice', medium:'Paintings|Drawings|Watercolors' }, take:30 },
       { src:'cma', params:{ q:'venice' }, limit:30 },
       { src:'vam', params:{ q:'Venice' }, limit:30 },
+      { src:'wd', filter:'?item wdt:P180 wd:Q641 .', limit:40 },
     ]},
 
   { id:'paris', group:'Places', name:'Paris', note:'Boulevards in the rain, and everybody at the café.',
@@ -178,6 +190,7 @@ export const PLAYLISTS = [
       { src:'aic', q:'Paris boulevard Seine Montmartre', limit:80 },
       { src:'met', params:{ q:'Paris', medium:'Paintings' }, take:30 },
       { src:'cma', params:{ q:'paris', type:'Painting' }, limit:26 },
+      { src:'wd', filter:'?item wdt:P180 wd:Q90 .', limit:40 },
     ]},
 
   { id:'japan', group:'Places', name:'Japan', note:'Rain, snow, pine, and Fuji somewhere at the back.',
@@ -193,6 +206,7 @@ export const PLAYLISTS = [
       { src:'met', params:{ q:'seascape', medium:'Paintings' }, take:28 },
       { src:'cma', params:{ q:'sea coast', type:'Painting' }, limit:30 },
       { src:'smk', params:{ keys:'hav kyst skib' }, limit:26 },
+      { src:'wd', filter:'?item wdt:P136 wd:Q158607 .', limit:40 },
     ]},
 
   { id:'the-north', group:'Places', name:'The North', note:'Nordic light: long shadows, cold water, low sun.',
@@ -227,6 +241,26 @@ export const PLAYLISTS = [
   { id:'museum-vam', group:'Museums', name:'The V&A', note:'South Kensington: the world’s largest museum of applied art.',
     tags:['vam'], rand:true, queries:[
       { src:'vam', params:{ q:'painting watercolour', year_made_to:'1910' }, limit:50 },
+    ]},
+
+  { id:'museum-rijks', group:'Museums', name:'The Rijksmuseum', note:'Amsterdam. Rembrandt, Vermeer, Hals, and the whole Golden Age.',
+    tags:['rijks'], rand:true, queries:[
+      { src:'wd', filter:'VALUES ?coll { wd:Q190804 } ?item wdt:P195 ?coll .', limit:45 },
+    ]},
+
+  { id:'museum-prado', group:'Museums', name:'Museo del Prado', note:'Madrid. Velázquez, Goya, El Greco, Bosch.',
+    tags:['prado'], rand:true, queries:[
+      { src:'wd', filter:'VALUES ?coll { wd:Q160112 } ?item wdt:P195 ?coll .', limit:45 },
+    ]},
+
+  { id:'museum-louvre', group:'Museums', name:'The Louvre', note:'Paris. Rather a lot of it.',
+    tags:['louvre'], rand:true, queries:[
+      { src:'wd', filter:'VALUES ?coll { wd:Q19675 } ?item wdt:P195 ?coll .', limit:45 },
+    ]},
+
+  { id:'museum-ng', group:'Museums', name:'The National Gallery', note:'Trafalgar Square, and free since 1824.',
+    tags:['ng'], rand:true, queries:[
+      { src:'wd', filter:'VALUES ?coll { wd:Q180788 } ?item wdt:P195 ?coll .', limit:45 },
     ]},
 
   { id:'museum-smk', group:'Museums', name:'SMK, Copenhagen', note:'The Danish national gallery, open-licensed and Nordic to the bone.',

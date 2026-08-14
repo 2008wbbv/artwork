@@ -58,6 +58,7 @@ export class Gallery {
     if (!spin) return q;
     if (q.src === 'aic') return { ...q, page: 1 + spin };
     if (q.src === 'cma') return { ...q, params: { ...q.params, skip: String(spin * 45) } };
+    if (q.src === 'wd') return { ...q, offset: spin * 40 };
     return q;
   }
 

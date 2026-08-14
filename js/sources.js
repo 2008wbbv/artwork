@@ -279,6 +279,90 @@ async function smkSearch({ params = {}, limit = 40 }, signal) {
   return (j.items || []).map(fromSMK).filter(Boolean);
 }
 
+/* ------------------------------------------------------ WIKIDATA
+   Everything the other five don't hold. Wikidata's "sum of all
+   paintings" reaches the Rijksmuseum, the Prado, the Louvre and the
+   National Gallery, and the pictures come off Wikimedia Commons.
+   Only work made before 1900, so the painting itself is long out of
+   copyright wherever it hangs. */
+const DEMONYM = { Netherlands:'Dutch', 'Dutch Republic':'Dutch', 'Kingdom of the Netherlands':'Dutch',
+  'Northern Netherlands':'Dutch', France:'French', 'Kingdom of France':'French', Italy:'Italian',
+  'Kingdom of Italy':'Italian', 'Republic of Venice':'Italian', 'Papal States':'Italian',
+  'Grand Duchy of Tuscany':'Italian', Germany:'German', 'Kingdom of Prussia':'German',
+  'German Empire':'German', Spain:'Spanish', 'United Kingdom':'British',
+  'United Kingdom of Great Britain and Ireland':'British', England:'British', Scotland:'British',
+  'Kingdom of Great Britain':'British', 'United States of America':'American', Japan:'Japanese',
+  Belgium:'Belgian', 'County of Flanders':'Flemish', 'Habsburg Netherlands':'Flemish',
+  Austria:'Austrian', 'Austrian Empire':'Austrian', 'Austria-Hungary':'Austrian',
+  'Russian Empire':'Russian', Russia:'Russian', Sweden:'Swedish', Norway:'Norwegian',
+  Denmark:'Danish', Switzerland:'Swiss', Poland:'Polish', Hungary:'Hungarian', Greece:'Greek' };
+
+const isQid = s => /^Q\d+$/.test(s || '');
+
+function fromWD(b) {
+  const qid = (b.item?.value || '').split('/').pop();
+  const file = b.image?.value;
+  if (!qid || !file) return null;
+  const title = b.itemLabel?.value;
+  if (!title || isQid(title)) return null;                 // nothing readable to put on the label
+  const artist = b.creatorLabel?.value;
+  const src = file.replace(/^http:/, 'https:');
+  const coll = b.collLabel?.value && !isQid(b.collLabel.value) ? b.collLabel.value : '';
+  const country = b.natLabel?.value || '';
+  return finish({
+    key: 'wd:' + qid,
+    src: 'wd',
+    museum: coll || 'Wikimedia Commons',
+    museumShort: coll || 'Wikimedia Commons',
+    city: '',
+    title,
+    artist: artist && !isQid(artist) ? artist : 'Unknown',
+    artistBio: '',
+    nationality: DEMONYM[country] || '',
+    date: (b.inception?.value || '').slice(0, 4),
+    medium: b.matLabel?.value && !isQid(b.matLabel.value) ? b.matLabel.value : '',
+    dims: '',
+    credit: coll,
+    place: '',
+    culture: country,
+    style: b.movLabel?.value && !isQid(b.movLabel?.value) ? b.movLabel.value : '',
+    classification: 'Painting',
+    department: '',
+    gallery: '',
+    note: '',
+    alt: [title, artist].filter(Boolean).join(', '),
+    url: `https://www.wikidata.org/wiki/${qid}`,
+    lqip: '',
+    ratio: 0,
+    image: w => `${src}?width=${w}`,
+    hiRes: `${src}?width=2400`,
+  });
+}
+
+async function wdSearch({ filter = '', limit = 40, offset = 0 }, signal) {
+  const q = `SELECT ?item ?itemLabel ?creatorLabel ?image ?inception ?matLabel ?collLabel ?natLabel ?movLabel WHERE {
+  ?item wdt:P31 wd:Q3305213 ; wdt:P18 ?image ; wdt:P170 ?creator ; wdt:P571 ?inception .
+  FILTER(YEAR(?inception) < 1900)
+  FILTER EXISTS { ?item rdfs:label ?en FILTER(LANG(?en) = "en") }
+  ${filter}
+  OPTIONAL { ?item wdt:P186 ?mat }
+  OPTIONAL { ?item wdt:P195 ?coll }
+  OPTIONAL { ?item wdt:P135 ?mov }
+  OPTIONAL { ?creator wdt:P27 ?nat }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+} LIMIT ${limit * 3} OFFSET ${offset}`;      // the optionals multiply rows; we dedupe back down
+  const url = `https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(q)}`;
+  const j = await fetchJSON(url, { signal, timeout: 26000 });
+  const rows = j.results?.bindings || [];
+  const seen = new Set();
+  return rows.map(b => {                                   // optionals multiply rows; keep the first
+    const id = b.item?.value;
+    if (!id || seen.has(id)) return null;
+    seen.add(id);
+    return fromWD(b);
+  }).filter(Boolean);
+}
+
 /* ---------------------------------------------------------- */
 const SOURCES = {
   aic: { name: 'Art Institute of Chicago', run: aicSearch },
@@ -286,6 +370,7 @@ const SOURCES = {
   cma: { name: 'Cleveland Museum of Art', run: cmaSearch },
   vam: { name: 'Victoria and Albert Museum', run: vamSearch },
   smk: { name: 'Statens Museum for Kunst', run: smkSearch },
+  wd:  { name: 'Wikidata · the sum of all paintings', run: wdSearch },
 };
 
 /** run one query spec from a playlist */

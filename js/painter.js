@@ -24,9 +24,10 @@ const BURST = 60;        // beyond this many strokes behind, stop animating and 
 const LAYERS = [
   { t0:0,   t1:.09, size:.120, mip:3, over:2.4, elong:2.1, wide:.84, alpha:[.42,.62], detail:0,   segs:7, bristle:3, blunt:[.58,.78], halo:.34 },
   { t0:.09, t1:.32, size:.056, mip:2, over:1.9, elong:2.3, wide:.70, alpha:[.52,.74], detail:0,   segs:6, bristle:3, blunt:[.44,.64], halo:.22 },
-  { t0:.32, t1:.60, size:.027, mip:1, over:1.6, elong:2.4, wide:.58, alpha:[.62,.84], detail:.12, segs:5, bristle:2, blunt:[.32,.52], halo:0   },
-  { t0:.60, t1:.85, size:.0132,mip:0, over:1.35,elong:2.3, wide:.52, alpha:[.60,.86], detail:.38, segs:4, bristle:2, blunt:[.24,.44], halo:0   },
-  { t0:.85, t1:1,   size:.0064,mip:0, over:1.25,elong:2.2, wide:.48, alpha:[.55,.82], detail:.56, segs:3, bristle:1, blunt:[.18,.38], halo:0   },
+  { t0:.32, t1:.58, size:.027, mip:1, over:1.6, elong:2.4, wide:.58, alpha:[.62,.84], detail:.12, segs:5, bristle:2, blunt:[.32,.52], halo:0   },
+  { t0:.58, t1:.78, size:.0132,mip:0, over:1.35,elong:2.3, wide:.52, alpha:[.60,.86], detail:.34, segs:4, bristle:2, blunt:[.24,.44], halo:0, sweep:7 },
+  { t0:.78, t1:.93, size:.0062,mip:0, over:1.2, elong:2.2, wide:.48, alpha:[.55,.82], detail:.50, segs:3, bristle:1, blunt:[.18,.38], halo:0, sweep:11 },
+  { t0:.93, t1:1,   size:.0032,mip:0, over:1.0, elong:2.0, wide:.46, alpha:[.50,.78], detail:.72, segs:2, bristle:0, blunt:[.14,.32], halo:0, sweep:16 },
 ];
 
 export class Painter {
@@ -143,7 +144,7 @@ export class Painter {
 
   _buildMips() {
     this.mips = [];
-    const widths = [520, 260, 130, 64];
+    const widths = [1040, 400, 176, 72];
     const iw = this.img.naturalWidth || 1, ih = this.img.naturalHeight || 1;
     let src = this.img;
     for (const target of widths) {
@@ -319,6 +320,7 @@ export class Painter {
         const j = Math.floor(rnd() * (i + 1));
         const t = order[i]; order[i] = order[j]; order[j] = t;
       }
+      const made = [];
       for (let k = 0; k < count; k++) {
         const c = order[k % cells];
         const x = field.x + ((c % nx) + rnd() - bleed) * cell;
@@ -335,11 +337,25 @@ export class Painter {
           a = flow(x, y, min);
         }
         if (L.detail && m < .5 && rnd() > 1 - L.detail) continue;   // spend the fine work on edges
-        xs.push(x); ys.push(y);
-        an.push(a + (rnd() - .5) * lerp(.86, .3, clamp(m, 0, 1)));
-        sz.push(cell * lerp(.62, 1.62, Math.pow(rnd(), 1.7)));
-        al.push(lerp(L.alpha[0], L.alpha[1], rnd()));
-        lm.push(lerp(1.16, .66, clamp(m, 0, 1)));
+        made.push({
+          x, y,
+          a: a + (rnd() - .5) * lerp(.86, .3, clamp(m, 0, 1)),
+          s: cell * lerp(.62, 1.62, Math.pow(rnd(), 1.7)),
+          al: lerp(L.alpha[0], L.alpha[1], rnd()),
+          lm: lerp(1.16, .66, clamp(m, 0, 1)),
+          k: 0,
+        });
+      }
+      if (L.sweep) {
+        // the finishing passes travel over the picture in bands, so you can
+        // watch it sharpen under the brush instead of everywhere at once
+        const band = (field.h + field.w * .42) / L.sweep;
+        for (const st of made) st.k = Math.floor(((st.y - field.y) + (st.x - field.x) * .42) / band) + rnd() * .5;
+        made.sort((p, q) => p.k - q.k);
+      }
+      for (const st of made) {
+        xs.push(st.x); ys.push(st.y);
+        an.push(st.a); sz.push(st.s); al.push(st.al); lm.push(st.lm);
         lay.push(li);
       }
       bounds.push({ ...L, start, end: xs.length });
