@@ -81,7 +81,7 @@ export class Painter {
     const iw = this.img.naturalWidth || this.img.width;
     const ih = this.img.naturalHeight || this.img.height;
     const s = this.fit === 'frame'
-      ? Math.min(this.W / iw, this.H / ih) * .78
+      ? Math.min(this.W / iw, this.H / ih) * .72
       : Math.max(this.W / iw, this.H / ih) * 1.035;
     const w = iw * s, h = ih * s;
     const y = this.fit === 'frame' ? (this.H - h) / 2 - this.H * .012 : (this.H - h) / 2;

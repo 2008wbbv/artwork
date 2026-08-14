@@ -38,6 +38,11 @@ Then open `http://localhost:8000`. To publish, drop it on any static host — th
 - **Radio**, from SomaFM and the Radio Browser index, with what's playing right now. Ducks under the chime between intervals.
 - **23 badges**, awarded only for pictures you actually sat through — ten German painters, twenty Venices, five works by one hand, seven days running.
 - **Two ways to look.** *Fill* bleeds the picture off every edge; *Hang* fits the whole thing on a lit wall, which portrait paintings prefer.
+
+  <img src="docs/fit-fill.jpg" alt="a portrait painting filling the screen, heavily cropped" width="49%"> <img src="docs/fit-hang.jpg" alt="the same painting hung whole on a wall" width="49%">
+
+  <sup>Van Gogh's *Madame Roulin and Her Baby*, filling the screen and hung on the wall.</sup>
+
 - **An interface that gets out of the way.** After a few still seconds everything but the clock fades. The brightness under each cluster of type is measured live, and only that patch of picture is darkened, so the text never fights the painting.
 
 <img src="docs/playlists.jpg" alt="the playlist drawer" width="49%"> <img src="docs/badges.jpg" alt="the badge shelf" width="49%">
