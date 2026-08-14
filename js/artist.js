@@ -70,16 +70,22 @@ export async function profile(name) {
   return out;
 }
 
-/** what else the five museums are holding by the same hand */
+/** flatten image() to something JSON can hold */
+const TEMPLATED = ['aic', 'vam', 'smk'];      // these take a width straight into the url
+const serialise = a => ({ ...a, image: TEMPLATED.includes(a.src) ? a.image('{w}') : a.image(1200) });
+
+/** what else the collections are holding by the same hand */
 export async function worksBy(name, exceptKey = '') {
   const key = 'works.' + slug(name);
   const hit = load('cache.' + key, null);
+  // a copy every time: the cache hands back the same objects on every call,
+  // and turning their image field into a function in place meant the second
+  // look at an artist found nothing left to show
   const rehydrate = list => list.map(a => {
-    const [src] = String(a.key).split(':');
+    if (typeof a.image === 'function') return a;
+    if (typeof a.image !== 'string') return null;
     const url = a.image;
-    if (typeof url !== 'string') return null;
-    a.image = src === 'aic' || src === 'vam' || src === 'smk' ? (w => url.replace('{w}', w)) : (() => url);
-    return a;
+    return { ...a, image: url.includes('{w}') ? (w => url.replace(/\{w\}/g, w)) : (() => url) };
   }).filter(Boolean);
 
   if (hit && Date.now() - hit.t < SHELF) return rehydrate(hit.v).filter(a => a.key !== exceptKey);
@@ -103,9 +109,7 @@ export async function worksBy(name, exceptKey = '') {
   }).slice(0, 12);
 
   if (found.length) {
-    save('cache.' + key, { t: Date.now(), v: found.map(a => ({
-      ...a, image: ['aic', 'vam', 'smk'].includes(a.src) ? a.image('{w}') : a.image(1200),
-    })) });
+    save('cache.' + key, { t: Date.now(), v: found.map(serialise) });
   }
   return found.filter(a => a.key !== exceptKey);
 }

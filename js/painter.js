@@ -31,7 +31,12 @@ const LAYERS = [
 ];
 
 export class Painter {
-  constructor(canvas) {
+  /** `fixed` paints into a canvas of a given size instead of the viewport, and
+      `coarse` uses a bigger brush and fewer passes — between them that's a
+      miniature of any picture, from nothing but its seed. */
+  constructor(canvas, { fixed = null, coarse = false } = {}) {
+    this.fixed = fixed;
+    this.coarse = coarse;
     this.cv = canvas;
     this.ctx = canvas.getContext('2d', { alpha: false });
     // paint that has dried; the wet strokes are re-drawn over it every frame
@@ -67,6 +72,14 @@ export class Painter {
 
   /* ---------------------------------------------------- sizing */
   setSize() {
+    if (this.fixed) {
+      if (this.fixed.w === this.W && this.fixed.h === this.H) return false;
+      this.W = this.cv.width = this.settled.width = this.fixed.w;
+      this.H = this.cv.height = this.settled.height = this.fixed.h;
+      this.dpr = 1;
+      this._toothPat = null;
+      return true;
+    }
     const cssW = Math.max(320, window.innerWidth);
     const cssH = Math.max(320, window.innerHeight);
     let dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -303,8 +316,10 @@ export class Painter {
     const xs = [], ys = [], an = [], sz = [], al = [], lm = [], lay = [];
     const bounds = [];
     const upscale = rect.w / (this.img?.naturalWidth || rect.w);
-    const cut = this.lowMotion ? 4 : upscale > 2.3 ? 4 : LAYERS.length;
-    const layers = LAYERS.slice(0, cut);
+    const cut = this.coarse ? 3 : this.lowMotion ? 4 : upscale > 2.3 ? 4 : LAYERS.length;
+    const layers = LAYERS.slice(0, cut).map(L => this.coarse
+      ? { ...L, size: L.size * 1.5, over: L.over * .85, t1: L.t1 / LAYERS[2].t1 }
+      : L);
 
     layers.forEach((L, li) => {
       const cell = Math.max(2, L.size * min);
@@ -703,6 +718,16 @@ export class Painter {
       dock:   this.zoneLuma(.72, .80, 1, 1),
       top:    this.zoneLuma(0, 0, 1, .11),
     };
+  }
+
+  /** paint the whole thing now, for a frame on a wall */
+  finish() {
+    if (!this.plan) return;
+    this.setProgress(1);
+    this.active.length = 0;
+    while (this.drawn < this.target) this._stroke(this.drawn++, this.sctx);
+    this.dirty = true;
+    this._present();
   }
 
   /** a quiet abstraction for when the collections can't be reached */

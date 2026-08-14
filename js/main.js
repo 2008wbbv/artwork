@@ -8,9 +8,11 @@ import { Gallery } from './gallery.js';
 import { Timer } from './timer.js';
 import { Radio, STATIONS } from './radio.js';
 import { Ledger } from './badges.js';
+import { hang as remember } from './museum.js';
 import { UI } from './ui.js';
 import { byId } from './playlists.js';
 import * as sound from './sound.js';
+import * as notify from './notify.js';
 
 const DEFAULTS = {
   focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4,
@@ -18,6 +20,7 @@ const DEFAULTS = {
   playlist: 'the-ten',
   volume: .5, stationId: 'secretagent', station: null, radioOn: true,
   chimes: true, recede: true, labelOn: true, grain: true, fit: 'fill',
+  doing: '', notify: false,
 };
 
 const settings = { ...DEFAULTS, ...load('settings', {}) };
@@ -128,10 +131,18 @@ timer.onphase = ({ phase, completed }) => {
     radio.duck(2800);
     phase === 'focus' ? sound.chimeWork() : sound.chimeRest();
   }
+  if (completed && settings.notify) {
+    const art = gallery.current?.art;
+    notify.tell(phase === 'focus' ? 'Back to it' : 'That interval is done',
+      phase === 'focus'
+        ? `${Math.round(timer.duration / 60000)} minutes of focus${art ? ' · ' + art.title : ''}`
+        : `Rest for ${Math.round(timer.duration / 60000)} minutes`);
+  }
 };
 
 timer.oncomplete = ({ phase, minutes }) => {
   const art = gallery.current?.art;
+  remember({ art, minutes, phase, doing: settings.doing });
   const fresh = ledger.record({
     art, phase, minutes,
     playlist: byId(settings.playlist),
@@ -187,6 +198,11 @@ ui.on = {
                seal: dir > 0 ? '+' : '−', ms: 2000 });
   },
   nextArt() { hang({ silent: true }); },
+  rehang(h) {
+    const art = { ...h.a, key: h.k, src: h.a.src, museumShort: h.a.museum, artistBio: '', place: '', culture: '',
+                  classification: '', department: '', gallery: '', credit: '', dims: '', alt: h.a.title, lqip: '', ratio: 0 };
+    return ui.on.showWork(art);
+  },
   async showWork(art) {
     swapping = true;
     const next = await gallery.show(art);
@@ -211,6 +227,7 @@ ui.on = {
     radio.play(st);
   },
   volume(v) { radio.setVolume(v); persist(); },
+  doing(text) { settings.doing = text; persist(); },
   fit(mode) { settings.fit = mode; persist(); painter.setFit(mode); },
   wipe() {
     if (!confirm('Clear every badge, statistic and setting stored in this browser?')) return;
@@ -221,13 +238,21 @@ ui.on = {
     const map = {
       'set-focus': 'focusMin', 'set-short': 'shortMin', 'set-long': 'longMin', 'set-every': 'longEvery',
       'set-autobreak': 'autoBreak', 'set-autofocus': 'autoFocus', 'set-recede': 'recede',
-      'set-label': 'labelOn', 'set-grain': 'grain', 'sw-chimes': 'chimes',
+      'set-label': 'labelOn', 'set-grain': 'grain', 'sw-chimes': 'chimes', 'sw-notify': 'notify',
     };
     const key = map[id];
     if (!key) return;
     settings[key] = value;
     persist();
     if (key === 'grain') ui.setGrain(value);
+    if (key === 'notify' && value) {
+      notify.ask().then(ok => {
+        settings.notify = ok;
+        persist();
+        ui.renderSettings();
+        if (!ok) ui.toast({ kicker: 'Notifications', name: 'Your browser said no', seal: '⌾', ms: 3800 });
+      });
+    }
     if (key === 'labelOn') ui.showLabel(value ? gallery.current?.art : null);
     if (key === 'recede') value ? ui.armHush() : ui.unhush();
     if (['focusMin', 'shortMin', 'longMin'].includes(key) && timer.state === 'idle') {
@@ -290,4 +315,8 @@ $('#intro').addEventListener('click', e => {
 });
 
 if (!firstRun) setTimeout(() => ledger.check(), 1200);
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+
 window.artwork = { painter, gallery, timer, radio, ledger, settings };

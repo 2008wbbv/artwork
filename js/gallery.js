@@ -159,16 +159,16 @@ function dedupe(list) {
 /** the image() closure doesn't survive JSON, so rebuild it from the key */
 function rehydrate(a) {
   if (typeof a.image === 'function') return a;
-  const [src, id] = String(a.key || '').split(':');
   if (typeof a.image !== 'string') return null;
   const url = a.image;
-  a.image = src === 'aic' ? (w => url.replace('{w}', w)) : (() => url);
-  return a;
+  // a copy, not a mutation: these objects live in the cache and get handed
+  // back on every read
+  return { ...a, image: url.includes('{w}') ? (w => url.replace(/\{w\}/g, w)) : (() => url) };
 }
 
-/** flatten image() into something JSON can hold, before caching */
+/** flatten image() into something JSON can hold, before caching. Three of the
+    sources take the width straight into the url, so those keep a template. */
+const TEMPLATED = ['aic', 'vam', 'smk'];
 function serialisable(a) {
-  const copy = { ...a };
-  copy.image = a.src === 'aic' ? a.image('{w}') : a.image(1200);
-  return copy;
+  return { ...a, image: TEMPLATED.includes(a.src) ? a.image('{w}') : a.image(1200) };
 }

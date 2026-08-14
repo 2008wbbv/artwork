@@ -13,6 +13,8 @@
 <meta property="og:image" content="https://2008wbbv.github.io/artwork/docs/hero.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://api.artic.edu">
@@ -54,6 +56,8 @@
       <button class="btn btn--ghost" id="btn-reset" title="Reset this interval (R)">Reset</button>
     </div>
     <div class="cycle" id="cycle" aria-label="Pomodoros this set"></div>
+    <input class="doing" id="doing" maxlength="80" autocomplete="off" spellcheck="false"
+           placeholder="What are you working on?" aria-label="What are you working on">
   </main>
 
   <footer class="bar bar--bottom">
@@ -82,6 +86,9 @@
       </button>
       <button class="ico" id="btn-sound" title="Sound (M) — right-click for stations" aria-label="Sound">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.4L12 5.6v12.8L7.4 14.5H4z"/><path class="wave1" d="M15.6 9.4a4 4 0 0 1 0 5.2"/><path class="wave2" d="M18.4 6.9a7.6 7.6 0 0 1 0 10.2"/></svg>
+      </button>
+      <button class="ico" id="btn-museum" title="Your museum (G)" aria-label="Your museum">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.4 9.4 12 4.2l8.6 5.2"/><path d="M5.6 9.9v7.4M9.9 9.9v7.4M14.1 9.9v7.4M18.4 9.9v7.4"/><path d="M3.4 19.8h17.2"/></svg>
       </button>
       <button class="ico" id="btn-badges" title="Badges (B)" aria-label="Badges">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2 14.5 8l5.3.8-3.8 3.7.9 5.3-4.9-2.6-4.9 2.6.9-5.3L4.2 8.8 9.5 8z"/></svg>
@@ -117,6 +124,20 @@
     <div class="panel" data-panel="badges" id="panel-badges" hidden></div>
     <div class="panel" data-panel="settings" id="panel-settings" hidden></div>
   </div>
+</section>
+
+<section class="museum" id="museum" hidden aria-label="Your museum">
+  <header class="museum__bar">
+    <div>
+      <h2 class="museum__title">Your museum</h2>
+      <p class="museum__sub" id="museum-sub"></p>
+    </div>
+    <button class="ico ico--close" id="museum-close" aria-label="Close">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+  </header>
+  <div class="hall" id="hall" tabindex="0"></div>
+  <figure class="plaque" id="plaque" hidden></figure>
 </section>
 
 <div class="toasts" id="toasts" aria-live="polite"></div>

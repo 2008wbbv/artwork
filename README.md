@@ -35,6 +35,8 @@ Then open `http://localhost:8000`. To publish, drop it on any static host — th
 
 - **38 playlists** by movement, artist, place, museum and curator's pick — Impressionism, the Dutch Golden Age, Ukiyo-e, Vienna 1900, Monet, Hokusai, Vermeer, Venice, Paris, The Sea, The North, and the Rijksmuseum, Prado, Louvre and National Gallery by way of Wikidata.
 - **A wall label** for every picture: title, hand, date, medium, the museum's own note, and the gallery it's hanging in right now. Hover it for the credit line.
+- **A museum of your own.** Every picture you sit through is hung on a wall you can walk along — in a gilt frame, in rooms by century, with a "Lately" wall and one for the hands you keep coming back to. Nothing is stored but the seed: each frame is *repainted* from forty bytes, stroke for stroke, exactly as you first watched it go down. Hover for the label and when you painted it; click to hang it again.
+- **One line about what you're doing.** Type it before you start and it sits under the clock, then goes into the record — so the museum reads *Bruegel, 25 minutes, "finishing the deck"* rather than just a date.
 - **The hand behind it.** Click the artist and you get a short life off Wikipedia — with their portrait, often a self-portrait, in a gilt frame — and everything else of theirs across the collections. Click any of those and it goes up on the wall.
 - **Radio**, from SomaFM and the Radio Browser index, with what's playing right now. Ducks under the chime between intervals.
 - **23 badges**, awarded only for pictures you actually sat through — ten German painters, twenty Venices, five works by one hand, seven days running.
@@ -78,11 +80,14 @@ Responses are cached for the best part of a day. Pictures start from the museum'
 | <kbd>+</kbd> <kbd>−</kbd> | five minutes more or less — the brush keeps pace |
 | <kbd>n</kbd> | another painting |
 | <kbd>m</kbd> | radio on · off |
+| <kbd>g</kbd> | your museum |
 | <kbd>p</kbd> <kbd>b</kbd> <kbd>,</kbd> | playlists · badges · settings |
 
 ## Notes
 
-- Nothing leaves the browser. Settings, badges and statistics live in `localStorage` under `artwork.v1.*`; *Settings → Forget everything* clears the lot.
+- Nothing leaves the browser. Settings, badges, statistics and the museum live in `localStorage` under `artwork.v1.*`; *Settings → Forget everything* clears the lot.
+- It installs. There's a manifest and a service worker, so it can be added to a dock or a home screen and opened with no network — the shell is cached, along with the last forty pictures you were shown.
+- A desktop note when an interval ends, if you switch it on in Settings. Only fires when you've tabbed away; if you're looking at it, the chime is enough.
 - The stroke plan is seeded and deterministic, so resizing the window — or swapping the picture mid-interval — replays instantly to exactly the same level of completion.
 - Dead image links happen — collections move files. The queue tries sixteen, remembers the ones that failed so it never asks twice, and if it still comes up empty it repaints the picture already on the wall rather than taking it down. The quiet abstraction is only for a genuine outage, and the shelf refetches itself in the background.
 - `prefers-reduced-motion` drops the finest stroke pass and the dissolve between pictures.
@@ -92,7 +97,10 @@ js/painter.js      the stroke engine
 js/gallery.js      viewing order, image loading, caching
 js/sources.js      six collection adapters, normalised to one shape
 js/artist.js       who painted it, and what else of theirs is hanging
+js/museum.js       what you've painted, and how it's hung
+js/notify.js       the desktop note, off unless asked for
 js/keys.js         optional API keys; empty by default
+sw.js              the offline shell
 js/playlists.js    the catalogue
 js/timer.js        wall-clock pomodoro state machine
 js/radio.js        stations, streaming, now-playing

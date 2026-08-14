@@ -6,6 +6,9 @@ import { shelves, GROUPS } from './playlists.js';
 import { STATIONS, DISCOVER_TAGS, discover } from './radio.js';
 import { BADGES } from './badges.js';
 import { profile, worksBy } from './artist.js';
+import { rooms, count, when } from './museum.js';
+import { Painter } from './painter.js';
+import { loadImage } from './sources.js';
 
 const HUSH_AFTER = 6200;
 
@@ -20,7 +23,7 @@ export class UI {
       skip: $('#btn-skip'), reset: $('#btn-reset'), cycle: $('#cycle'),
       label: $('#wall-label'), title: $('#label-title'), artist: $('#label-artist'),
       meta: $('#label-meta'), note: $('#label-note'), more: $('#label-more'), link: $('#label-link'),
-      artistTab: $('.tabs [data-tab="artist"]'),
+      artistTab: $('.tabs [data-tab="artist"]'), doing: $('#doing'),
       museum: $('#label-museum'), chip: $('#playlist-chip'), chipName: $('#playlist-name'),
       chipGroup: $('#playlist-group'), drawer: $('#drawer'), scrim: $('#scrim'),
       toasts: $('#toasts'), intro: $('#intro'), np: $('#nowplaying'), npText: $('#np-text'),
@@ -178,6 +181,102 @@ export class UI {
     if (tab === 'badges') this.renderBadges();
     if (tab === 'settings') this.renderSettings();
     if (tab === 'sound') this.renderSound();
+  }
+
+  /* --------------------------------------------- museum */
+  /** everything you've painted, repainted from its seed and hung up */
+  openMuseum() {
+    const box = $('#museum'), hall = $('#hall');
+    const list = rooms();
+    $('#museum-sub').textContent = count()
+      ? `${count()} ${count() === 1 ? 'picture' : 'pictures'} · ${list.length} ${list.length === 1 ? 'room' : 'rooms'}`
+      : 'Nothing hung yet';
+    hall.innerHTML = list.length ? list.map(r => `
+      <section class="room">
+        <h3 class="room__name">${escapeHtml(r.name)}</h3>
+        <p class="room__note">${escapeHtml(r.note || '')}</p>
+        <div class="wall">${r.works.map(h => `
+          <button class="hung" data-hung="${escapeHtml(h.k)}" data-room="${escapeHtml(r.id)}">
+            <span class="hung__frame"><span class="hung__mat"><canvas width="10" height="10"></canvas></span></span>
+            <span class="hung__tag">${escapeHtml(h.a.title)}</span>
+          </button>`).join('')}</div>
+      </section>`).join('')
+      : `<p class="museum__empty">The walls are bare. Finish an interval and whatever was on the screen is hung here, repainted from its seed.</p>`;
+
+    this._hung = new Map(list.flatMap(r => r.works.map(h => [r.id + '|' + h.k, h])));
+    box.hidden = false;
+    hall.scrollLeft = 0;
+    hall.focus({ preventScroll: true });
+    this._paintWalls();
+    this.on.museumOpen?.();
+  }
+
+  closeMuseum() {
+    $('#museum').hidden = true;
+    $('#plaque').hidden = true;
+    this._queue = [];
+  }
+
+  /** repaint each frame as it comes into view, one per animation frame */
+  _paintWalls() {
+    const hall = $('#hall');
+    this._queue = [];
+    this._seen?.disconnect();
+    this._seen = new IntersectionObserver(entries => {
+      for (const e of entries) if (e.isIntersecting) {
+        this._seen.unobserve(e.target);
+        this._queue.push(e.target);
+      }
+      this._drain();
+    }, { root: hall, rootMargin: '400px' });
+    $$('.hung', hall).forEach(el => this._seen.observe(el));
+  }
+
+  _drain() {
+    if (this._draining) return;
+    this._draining = true;
+    const step = async () => {
+      const el = this._queue.shift();
+      if (!el) { this._draining = false; return; }
+      await this._paintOne(el).catch(() => {});
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  async _paintOne(el) {
+    const h = this._hung?.get(el.dataset.room + '|' + el.dataset.hung);
+    const cv = $('canvas', el);
+    if (!h || !cv || cv.dataset.done) return;
+    cv.dataset.done = '1';
+    const { img } = await loadImage(h.a.image(520), 11000);
+    const wide = img.naturalWidth >= img.naturalHeight;
+    const side = Math.round(Math.min(178, Math.max(120, window.innerHeight * .2)));
+    const w = wide ? side : Math.round(side * (img.naturalWidth / img.naturalHeight));
+    const ht = wide ? Math.round(side * (img.naturalHeight / img.naturalWidth)) : side;
+    const mini = new Painter(cv, { fixed: { w, h: ht }, coarse: true });
+    cv.style.width = w + 'px';
+    cv.style.height = ht + 'px';
+    mini.load(img, { key: h.k });
+    mini.finish();
+  }
+
+  showPlaque(h) {
+    const p = $('#plaque');
+    if (!h) { p.hidden = true; return; }
+    p.hidden = false;
+    p.innerHTML = `
+      <div>
+        <p class="plaque__title">${escapeHtml(h.a.title)}</p>
+        <p class="plaque__by">${escapeHtml([h.a.artist, h.a.date].filter(Boolean).join(' · '))}</p>
+        <p class="plaque__meta">${escapeHtml([h.a.medium, h.a.museum].filter(Boolean).join(' · '))}</p>
+        ${h.a.note ? `<p class="plaque__note">${escapeHtml(h.a.note)}</p>` : ''}
+      </div>
+      <div class="plaque__side">
+        <p class="plaque__when">${escapeHtml(when(h))}</p>
+        ${h.d ? `<p class="plaque__note">“${escapeHtml(h.d)}”</p>` : ''}
+        <p class="plaque__when">Click to hang it again</p>
+      </div>`;
   }
 
   /* --------------------------------------------- artist */
@@ -385,6 +484,7 @@ export class UI {
         ${sw('set-recede', 'Let the interface recede', 'After a few still seconds, everything but the clock fades.', s.recede)}
         ${sw('set-label', 'Show the wall label', '', s.labelOn)}
         ${sw('set-grain', 'Film grain', '', s.grain)}
+        ${sw('sw-notify', 'Tell me when an interval ends', 'A desktop note, only when you\'ve tabbed away.', s.notify)}
       </section>
       <section class="sect">
         <h3 class="sect__head">Keys</h3>
@@ -394,6 +494,7 @@ export class UI {
           <dt><kbd>+</kbd><kbd>−</kbd></dt><dd>five minutes more or less — the brush keeps pace</dd>
           <dt><kbd>n</kbd></dt><dd>another painting</dd>
           <dt><kbd>m</kbd></dt><dd>radio on · off</dd>
+          <dt><kbd>g</kbd></dt><dd>your museum</dd>
           <dt><kbd>p</kbd><kbd>b</kbd><kbd>,</kbd></dt><dd>playlists · badges · settings</dd>
           <dt><kbd>esc</kbd></dt><dd>close this panel</dd>
         </dl>
@@ -403,18 +504,55 @@ export class UI {
         <p class="sect__note">Pictures: the Art Institute of Chicago, the Metropolitan Museum of Art, and the Cleveland Museum of Art, through their open APIs — public-domain and CC0 works only. Sound: SomaFM and the Radio Browser index. Nothing you do here leaves your browser.</p>
         <button class="row" id="wipe"><i class="row__dot"></i><span class="row__text">
           <span class="row__name">Forget everything</span>
-          <span class="row__note">Clears badges, statistics, cached pictures and settings.</span></span></button>
+          <span class="row__note">Clears the museum, badges, statistics, cached pictures and settings.</span></span></button>
       </section>`;
   }
 
   /* ------------------------------------------------ wiring */
   _wire() {
     const E = this.el;
+    E.doing.value = this.s.doing || '';
+    E.doing.oninput = () => this.on.doing?.(E.doing.value);
+    E.doing.onkeydown = e => { if (e.key === 'Enter') E.doing.blur(); };
     E.start.onclick = () => this.on.toggle?.();
     E.skip.onclick = () => this.on.skip?.();
     E.reset.onclick = () => this.on.reset?.();
     E.chip.onclick = () => this.toggleDrawer('playlists');
     $('#btn-badges').onclick = () => this.toggleDrawer('badges');
+    $('#btn-museum').onclick = () => this.openMuseum();
+    $('#museum-close').onclick = () => this.closeMuseum();
+
+    const hall = $('#hall');
+    hall.addEventListener('pointerover', e => {
+      const el = e.target.closest('.hung');
+      if (el) this.showPlaque(this._hung?.get(el.dataset.room + '|' + el.dataset.hung));
+    });
+    hall.addEventListener('pointerleave', () => this.showPlaque(null));
+    hall.addEventListener('click', e => {
+      const el = e.target.closest('.hung');
+      if (!el || this._dragged) return;
+      const h = this._hung?.get(el.dataset.room + '|' + el.dataset.hung);
+      if (h) { this.closeMuseum(); this.on.rehang?.(h); }
+    });
+    hall.addEventListener('wheel', e => {                 // a hall runs sideways
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      e.preventDefault();
+      hall.scrollLeft += e.deltaY;
+    }, { passive: false });
+    let down = 0, from = 0;
+    hall.addEventListener('pointerdown', e => {
+      down = e.clientX; from = hall.scrollLeft; this._dragged = false;
+      hall.dataset.dragging = '1'; hall.setPointerCapture(e.pointerId);
+    });
+    hall.addEventListener('pointermove', e => {
+      if (!hall.dataset.dragging) return;
+      const d = e.clientX - down;
+      if (Math.abs(d) > 4) this._dragged = true;
+      hall.scrollLeft = from - d;
+    });
+    const up = () => { hall.dataset.dragging = ''; setTimeout(() => (this._dragged = false), 30); };
+    hall.addEventListener('pointerup', up);
+    hall.addEventListener('pointercancel', up);
     this.el.artist.onclick = () => this.openArtist(this._current);
     $('#btn-settings').onclick = () => this.toggleDrawer('settings');
     $('#btn-next-art').onclick = e => {
@@ -486,7 +624,14 @@ export class UI {
 
     window.addEventListener('keydown', e => {
       const k = e.key.toLowerCase();
-      if (k === 'escape') { this.closeDrawer(); return; }      // even from a focused slider
+      if (k === 'escape') { this.closeMuseum(); this.closeDrawer(); return; }   // even from a focused slider
+      if (!$('#museum').hidden) {
+        const hall = $('#hall');
+        if (k === 'arrowright') { hall.scrollLeft += window.innerWidth * .6; return; }
+        if (k === 'arrowleft') { hall.scrollLeft -= window.innerWidth * .6; return; }
+        if (k === 'home') { hall.scrollLeft = 0; return; }
+        if (k === 'end') { hall.scrollLeft = hall.scrollWidth; return; }
+      }
       if (e.target.matches('input,textarea,select')) return;
       this.unhush();
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -498,6 +643,7 @@ export class UI {
       else if (k === 'n') this.on.nextArt?.();
       else if (k === 'm') this.on.toggleRadio?.();
       else if (k === 'b') this.toggleDrawer('badges');
+      else if (k === 'g') ($('#museum').hidden ? this.openMuseum() : this.closeMuseum());
       else if (k === 'p') this.toggleDrawer('playlists');
       else if (k === ',') this.toggleDrawer('settings');
       else if (k === '+' || k === '=') this.on.stretch?.(1);
