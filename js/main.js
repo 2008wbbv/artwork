@@ -13,6 +13,7 @@ import { UI } from './ui.js';
 import { byId } from './playlists.js';
 import * as sound from './sound.js';
 import * as notify from './notify.js';
+import { Tape, remembered as tapeSaved, remember as tapeKeep, forget as tapeDrop } from './tape.js';
 
 const DEFAULTS = {
   focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4,
@@ -27,6 +28,7 @@ const settings = { ...DEFAULTS, ...load('settings', {}) };
 const persist = debounce(() => save('settings', settings), 250);
 
 const painter = new Painter($('#stage'));
+const tape = new Tape($('#tape'));
 const gallery = new Gallery();
 const ledger  = new Ledger();
 const timer   = new Timer(settings);
@@ -121,11 +123,18 @@ ui.renderPlaylists();
 }
 
 /* --------------------------------------------------- clock */
-timer.onstate = t => ui.setState(t);
+timer.onstate = t => {
+  ui.setState(t);
+  if (!tape.live) return;
+  t.state === 'running'
+    ? tape.resume(() => timer.progress, () => timer.left)
+    : tape.pause();
+};
 
 timer.onphase = ({ phase, completed }) => {
   repin(0);
   ui.setState(timer);
+  if (tape.live) tape.begin(() => timer.progress, () => timer.left);
   hang({ silent: true });
   if (completed && settings.chimes) {
     radio.duck(2800);
@@ -141,8 +150,9 @@ timer.onphase = ({ phase, completed }) => {
 };
 
 timer.oncomplete = ({ phase, minutes }) => {
-  const art = gallery.current?.art;
-  remember({ art, minutes, phase, doing: settings.doing });
+  // the interval counts either way, but you only watched a picture if one was there
+  const art = tape.live ? null : gallery.current?.art;
+  if (art) remember({ art, minutes, phase, doing: settings.doing });
   const fresh = ledger.record({
     art, phase, minutes,
     playlist: byId(settings.playlist),
@@ -164,16 +174,17 @@ function frame(now) {
   if (timer.update() || timer.state !== 'running') {
     ui.setClock(fmtClock(timer.left), timer.left);
   }
-  if (!swapping) {
-    const p = paintProgress();
-    painter.setProgress(Math.max(.006, p));   // a few marks on the canvas before you begin
-    ui.setProgress(p);
-  }
-  painter.frame(dt);
-
-  if (now - scrimAt > 800) {
-    scrimAt = now;
-    ui.setScrims(painter.zones());
+  const p = paintProgress();
+  ui.setProgress(p);
+  // with a tape running there is nothing to paint, and video is busy enough
+  // under type that the scrims stay up rather than being measured
+  if (!tape.live) {
+    if (!swapping) painter.setProgress(Math.max(.006, p));  // a few marks on the canvas before you begin
+    painter.frame(dt);
+    if (now - scrimAt > 800) {
+      scrimAt = now;
+      ui.setScrims(painter.zones());
+    }
   }
   requestAnimationFrame(frame);
 }
@@ -228,6 +239,30 @@ ui.on = {
   },
   volume(v) { radio.setVolume(v); persist(); },
   skipTrack(by) { radio.skip(by); },
+
+  /* --------------------------------------------- the tape */
+  /** put a build behind the clock instead of a painting */
+  async tape(input) {
+    if (!input) {
+      tape.hide(); tapeDrop();
+      ui.setTape(null);
+      ui.showLabel(gallery.current?.art);
+      return;
+    }
+    ui.setTape({ state: 'loading' });
+    try {
+      const seconds = await tape.load(input);
+      tapeKeep({ id: tape.id, at: Date.now() });
+      tape.begin(() => timer.progress, () => timer.left);
+      if (timer.state !== 'running') tape.pause();
+      ui.setTape({ state: 'on', id: tape.id, seconds, span: timer.duration });
+    ui.setScrims({ centre: 1, label: 1, dock: 1, top: 1 });
+    ui.showLabel(null);            // there is no picture to caption
+    } catch (err) {
+      tape.hide();
+      ui.setTape({ state: 'failed', why: err.message });
+    }
+  },
   doing(text) { settings.doing = text; persist(); },
   fit(mode) { settings.fit = mode; persist(); painter.setFit(mode); },
   wipe() {
@@ -275,6 +310,11 @@ radio.onchange = (r, err) => {
 };
 
 /* --------------------------------------------------- boot */
+/* a tape you left behind is offered again, not resumed — starting a
+   video on page load without asking is somebody else's idea of good */
+const saved = tapeSaved();
+if (saved?.id) ui.setTape({ state: 'saved', id: saved.id });
+
 window.addEventListener('resize', debounce(() => { painter.resize(); ui.relayout(); }, 220));
 window.addEventListener('orientationchange', () => setTimeout(() => painter.resize(), 320));
 window.addEventListener('online', () => {

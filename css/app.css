@@ -291,6 +291,20 @@ a{color:inherit}
 #btn-sound[data-level="1"] .wave2{opacity:0}
 #btn-sound .wave1,#btn-sound .wave2{transition:opacity var(--fast) var(--ease)}
 
+/* ---------- the tape ---------- */
+/* a build timelapse where the painting would be, cropped to fill */
+.tape{
+  position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;
+  opacity:0;transition:opacity 1.6s var(--ease);background:#0b0a09;
+}
+.tape[data-on="1"]{opacity:1}
+.tape[data-on="0"]{visibility:hidden}
+.tape iframe,.tape .tape__frame{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  /* 16:9 covering whichever way the window is shaped */
+  width:max(100vw,177.78vh);height:max(100vh,56.25vw);border:0;
+}
+
 /* ---------- now playing ---------- */
 .nowplaying{
   display:flex;align-items:center;gap:.5rem;justify-content:flex-end;
@@ -486,6 +500,46 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .work:hover b{color:var(--ink-2)}
 
+/* ---------- the tape, and the fellow who watches it ---------- */
+.sect--mc{position:relative;padding-bottom:3.4rem}
+.tag{
+  margin-left:.5rem;padding:.1rem .38rem;border-radius:2px;font-size:.5rem;letter-spacing:.16em;
+  color:var(--ink-4);border:1px solid var(--line-2);vertical-align:.1em;
+}
+.tape__bad{color:#c98a6a;font-style:normal;font-family:inherit;font-size:.72rem}
+.lnk{
+  border:0;background:none;padding:0;font:inherit;color:var(--accent);cursor:pointer;
+  text-decoration:underline;text-underline-offset:2px;text-decoration-thickness:1px;
+  text-decoration-color:var(--line);
+}
+.lnk:hover{text-decoration-color:var(--accent)}
+/* he stands in the corner of his own section */
+.steve{
+  position:absolute;right:.1rem;bottom:.4rem;width:48px;height:66px;
+  opacity:.5;transition:opacity var(--mid) var(--ease);
+}
+.sect--mc:hover .steve{opacity:.9}
+.steve svg{width:100%;height:100%;overflow:visible}
+.steve__arm{transform-origin:12px 13px;animation:swing 1.9s var(--ease) infinite}
+.steve__block{animation:knock 1.9s var(--ease) infinite}
+.steve__body{animation:bob 1.9s var(--ease) infinite}
+/* the pick hangs down, so anticlockwise is the swing that reaches the block */
+@keyframes swing{
+  0%,100%{transform:rotate(14deg)}
+  40%{transform:rotate(-20deg)}
+  48%{transform:rotate(-17deg)}
+}
+@keyframes knock{
+  0%,38%,56%,100%{transform:none}
+  44%{transform:translate(1px,1px)}
+  50%{transform:translate(-.5px,0)}
+}
+@keyframes bob{0%,100%{transform:none}40%{transform:translateY(.6px)}}
+@media (prefers-reduced-motion:reduce){
+  .steve__arm,.steve__block,.steve__body{animation:none}
+  .steve__arm{transform:rotate(-16deg)}
+}
+
 /* ---------- badges ---------- */
 .badges{display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem}
 .badge{
@@ -546,40 +600,12 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
   flex:0 0 auto;display:flex;flex-direction:column;justify-content:flex-start;
   padding:clamp(1.4rem,4vh,3.2rem) clamp(2.5rem,6vw,6rem) 0;position:relative;
 }
-/* The way through to the next room. A recessed arch with a slim
-   moulded surround and a little warm light on the floor — dark
-   enough that it reads as a gap in the wall rather than furniture. */
+/* Between rooms: a line. Nothing more. */
 .room + .room::before{
-  content:"";position:absolute;left:-2.3rem;top:16%;bottom:3.4rem;width:4.6rem;
-  pointer-events:none;border-radius:2.3rem 2.3rem 2px 2px;
-  background:
-    linear-gradient(rgba(0,0,0,.62),rgba(0,0,0,.72) 60%,rgba(0,0,0,.5));
-  box-shadow:
-    inset 0 0 30px 6px rgba(0,0,0,.6),
-    inset 0 0 0 1px rgba(244,239,230,.05),
-    inset 0 0 0 5px rgba(255,240,206,.018),
-    inset 0 0 0 6px rgba(0,0,0,.35);
-}
-/* the surround: a hairline architrave, and the light it spills */
-.room + .room::after{
-  content:"";position:absolute;left:-3rem;top:16%;bottom:2.4rem;width:6rem;
+  content:"";position:absolute;left:0;top:14%;bottom:3.2rem;width:1px;
   pointer-events:none;
-  background:
-    /* impost line, where the arch springs */
-    linear-gradient(90deg,rgba(244,239,230,0),rgba(244,239,230,.07) 22%,
-      rgba(244,239,230,.07) 78%,rgba(244,239,230,0)) 50% 26%/4.9rem 1px no-repeat,
-    /* threshold */
-    linear-gradient(90deg,rgba(244,239,230,0),rgba(244,239,230,.06),rgba(244,239,230,0))
-      50% calc(100% - 1rem)/4.4rem 1px no-repeat,
-    /* the light on the floor */
-    radial-gradient(closest-side ellipse at 50% 100%,
-      rgba(255,238,200,.11),rgba(255,238,200,.028) 52%,rgba(255,238,200,0) 82%)
-      50% 100%/7.5rem 3rem no-repeat;
-}
-/* a rule along the wall between rooms, at picture-rail height */
-.room + .room .wall::before{
-  content:"";position:absolute;left:calc(-1 * clamp(2.5rem,6vw,6rem) - 1rem);width:1rem;top:0;bottom:2.2rem;
-  border-left:1px solid rgba(244,239,230,.05);
+  background:linear-gradient(rgba(244,239,230,0),rgba(244,239,230,.11) 18%,
+    rgba(244,239,230,.11) 82%,rgba(244,239,230,0));
 }
 .room__n{
   margin:0 0 .5rem;font-size:.55rem;letter-spacing:.34em;text-transform:uppercase;color:var(--ink-4);

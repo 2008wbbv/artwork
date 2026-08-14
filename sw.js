@@ -3,7 +3,7 @@
    cached on install, and the last few pictures you were shown are
    kept as they go past, so a flight still gets a painting.
    ============================================================ */
-const SHELL = 'artwork-shell-v1';
+const SHELL = 'artwork-shell-v2';
 const PICTURES = 'artwork-pictures-v1';
 const KEEP = 40;
 
@@ -12,6 +12,7 @@ const FILES = [
   './js/main.js', './js/painter.js', './js/gallery.js', './js/sources.js', './js/playlists.js',
   './js/timer.js', './js/radio.js', './js/badges.js', './js/ui.js', './js/sound.js',
   './js/store.js', './js/util.js', './js/artist.js', './js/museum.js', './js/keys.js', './js/notify.js',
+  './js/tape.js',
 ];
 
 const PICTURE_HOSTS = /artic\.edu|images\.metmuseum\.org|openaccess-cdn|framemark\.vam|iip\.smk|iip-thumb\.smk|upload\.wikimedia|commons\.wikimedia/;

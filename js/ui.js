@@ -10,6 +10,58 @@ import { rooms, count, when, style, columns } from './museum.js';
 import { Painter } from './painter.js';
 import { loadImage } from './sources.js';
 
+/* A small blocky fellow who stands in the Minecraft section, drawn here
+   in rectangles rather than borrowed from anywhere. He swings a pick at
+   a block that never quite breaks. */
+const STEVE = `<span class="steve" aria-hidden="true">
+  <svg viewBox="0 0 24 33" shape-rendering="crispEdges">
+    <g class="steve__block">
+      <rect x="15" y="24" width="7" height="7" fill="#6b8f43"/>
+      <rect x="15" y="24" width="7" height="2" fill="#7fae51"/>
+      <rect x="15" y="29" width="7" height="2" fill="#576c36"/>
+    </g>
+    <g class="steve__body">
+      <rect x="3"  y="12" width="2" height="6" fill="#2a8079"/>
+      <rect x="3"  y="18" width="2" height="2" fill="#a87953"/>
+      <rect x="4"  y="2"  width="8" height="3" fill="#3a2a1c"/>
+      <rect x="4"  y="5"  width="8" height="7" fill="#b8865f"/>
+      <rect x="4"  y="5"  width="8" height="1" fill="#3a2a1c"/>
+      <rect x="5"  y="7"  width="2" height="2" fill="#f2ece2"/>
+      <rect x="9"  y="7"  width="2" height="2" fill="#f2ece2"/>
+      <rect x="6"  y="7"  width="1" height="2" fill="#3c6b8f"/>
+      <rect x="10" y="7"  width="1" height="2" fill="#3c6b8f"/>
+      <rect x="6"  y="10" width="4" height="1" fill="#8a5f3e"/>
+      <rect x="5"  y="12" width="6" height="7" fill="#2f8f86"/>
+      <rect x="5"  y="19" width="6" height="1" fill="#2b3a68"/>
+      <rect x="5"  y="20" width="3" height="9" fill="#3b4f8a"/>
+      <rect x="8"  y="20" width="3" height="9" fill="#33447a"/>
+      <rect x="5"  y="29" width="6" height="2" fill="#4a4a52"/>
+    </g>
+    <g class="steve__arm">
+      <rect x="11" y="12" width="2" height="6" fill="#2f8f86"/>
+      <rect x="11" y="18" width="2" height="2" fill="#b8865f"/>
+      <rect x="12" y="19" width="1" height="7" fill="#6b4b2c"/>
+      <rect x="10" y="25" width="5" height="2" fill="#9aa4ad"/>
+      <rect x="10" y="27" width="5" height="1" fill="#767f88"/>
+    </g>
+  </svg>
+</span>`;
+
+/* The shelf that needs a little more explaining than a one-line note. */
+const MINECRAFT = `<section class="sect sect--mc">
+  <h3 class="sect__head">Minecraft <span class="tag">experiment</span></h3>
+  <p class="sect__note">The paintings shelf up there is Kristoffer Zetterstrand's originals, the canvases
+    the game's paintings were cut from. And instead of a painting you can put a build timelapse behind the
+    clock: paste a YouTube link and it runs at whatever speed makes it finish exactly when you do. Muted,
+    so it doesn't touch your music.</p>
+  <div class="bring">
+    <input type="url" id="tape-url" placeholder="https://youtu.be/…" autocomplete="off" spellcheck="false">
+    <button class="btn btn--quiet" data-tape-go="1">Run</button>
+  </div>
+  <div id="tape-state" data-on="0"></div>
+  ${STEVE}
+</section>`;
+
 const HUSH_AFTER = 6200;
 
 /** the listener's own stream addresses, with a way to take them back off */
@@ -451,7 +503,38 @@ export class UI {
       return `<section class="sect"><h3 class="sect__head">${g}</h3>${rows}</section>`;
     }).join('');
     $('#panel-playlists').innerHTML =
-      `<p class="sect__note">Every picture here is out of copyright and published openly by the museum that holds it.</p>${html}`;
+      `<p class="sect__note">Every picture here is out of copyright or freely licensed, and published openly
+        by the collection that holds it.</p>${html}${MINECRAFT}`;
+    this.setTape(this._tape);
+    const f = $('#tape-url');
+    if (f) f.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); this._runTape(); } };
+  }
+
+  /* ----------------------------------------------- the tape */
+  /** the experiment's state, drawn wherever the playlists panel currently is */
+  setTape(t) {
+    this._tape = t;
+    const box = $('#tape-state');
+    if (!box) return;
+    if (!t) { box.innerHTML = ''; box.dataset.on = '0'; return; }
+    box.dataset.on = '1';
+    if (t.state === 'loading') { box.innerHTML = '<p class="sect__note">Finding it…</p>'; return; }
+    if (t.state === 'failed') { box.innerHTML = `<p class="sect__note tape__bad">${escapeHtml(t.why)}</p>`; return; }
+    if (t.state === 'saved') {
+      box.innerHTML = `<p class="sect__note">You left one here.
+        <button class="lnk" data-tape-again="${escapeHtml(t.id)}">Run it again</button></p>`;
+      return;
+    }
+    const rate = t.seconds && t.span ? t.seconds / (t.span / 1000) : 0;
+    box.innerHTML = `<p class="sect__note">
+      ${escapeHtml(fmtDuration(t.seconds / 60))} of building, laid over
+      ${escapeHtml(fmtDuration(t.span / 60000))} of you — about ${rate.toFixed(1)}× speed.
+      <button class="lnk" data-tape-off="1">Back to paintings</button></p>`;
+  }
+
+  _runTape() {
+    const f = $('#tape-url');
+    if (f && f.value.trim()) this.on.tape?.(f.value.trim());
   }
 
   renderSound() {
@@ -729,6 +812,10 @@ export class UI {
       }
       if (e.target.closest('#own-pick')) { $('#own-files')?.click(); return; }
       if (e.target.closest('#own-add')) { this._addOwn(); return; }
+      if (e.target.closest('[data-tape-go]')) { this._runTape(); return; }
+      if (e.target.closest('[data-tape-off]')) { this.on.tape?.(''); return; }
+      const again = e.target.closest('[data-tape-again]');
+      if (again) { this.on.tape?.(again.dataset.tapeAgain); return; }
       const work = e.target.closest('[data-work]');
       if (work) {
         const w = this._works?.[+work.dataset.work];
