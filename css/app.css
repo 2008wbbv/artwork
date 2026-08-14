@@ -105,16 +105,16 @@ a{color:inherit}
 }
 .shell > *{min-width:0}
 
-/* everything but the clock recedes while you're actually working */
+/* while you're working, everything except the clock goes away entirely */
 .shell[data-recede="1"] .bar--top,
-.shell[data-recede="1"] .dock,
+.shell[data-recede="1"] .bar--bottom,
 .shell[data-recede="1"] .actions,
-.shell[data-recede="1"] .nowplaying,
-.shell[data-recede="1"] .cycle{opacity:.16}
-.shell[data-recede="1"] .label{opacity:.34}
-.shell[data-recede="1"] .phase{opacity:.4}
+.shell[data-recede="1"] .cycle,
+.shell[data-recede="1"] .rail,
+.shell[data-recede="1"] .phase{opacity:0}
 .shell[data-recede="1"]{cursor:none}
-.bar--top,.dock,.actions,.label,.phase,.cycle,.nowplaying{transition:opacity var(--slow) var(--ease)}
+.bar--top,.bar--bottom,.actions,.phase,.cycle,.rail{transition:opacity 1400ms var(--ease)}
+.label,.dock,.nowplaying{transition:opacity var(--slow) var(--ease)}
 
 /* ---------- top bar ---------- */
 .bar{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}
@@ -158,6 +158,7 @@ a{color:inherit}
 .shell[data-mini="1"] .btn{padding:.38rem .92rem;font-size:.66rem}
 .shell[data-mini="1"] .btn--primary{min-width:5.4rem}
 .shell[data-mini="1"] .actions{opacity:.45;margin-top:0}
+.shell[data-mini="1"][data-recede="1"] .actions{opacity:0}
 .shell[data-mini="1"] .centre:hover .actions{opacity:1}
 .shell[data-mini="1"] .cycle b{width:4px;height:4px}
 .phase{
@@ -245,8 +246,12 @@ a{color:inherit}
 .label__where i{font-style:normal;margin-left:.4em;font-size:.9em}
 
 /* ---------- dock ---------- */
+.corner{
+  display:flex;flex-direction:column;align-items:flex-end;gap:.35rem;
+  margin-left:auto;flex:0 0 auto;
+}
 .dock{
-  display:flex;gap:.15rem;flex:0 0 auto;margin-bottom:-.35rem;
+  display:flex;gap:.15rem;flex:0 0 auto;margin-right:-.5rem;margin-bottom:-.35rem;
 }
 .ico{
   width:40px;height:40px;border-radius:50%;display:grid;place-items:center;
@@ -263,10 +268,9 @@ a{color:inherit}
 
 /* ---------- now playing ---------- */
 .nowplaying{
-  display:flex;align-items:center;gap:.55rem;flex:1 1 auto;justify-content:center;
-  padding-bottom:.5rem;
-  font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);
-  max-width:38ch;
+  display:flex;align-items:center;gap:.5rem;justify-content:flex-end;
+  font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);
+  max-width:min(34ch,48vw);text-align:right;
 }
 .nowplaying span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .eq{display:flex;align-items:flex-end;gap:2px;height:9px}
@@ -472,6 +476,20 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
   opacity:0;pointer-events:none;
   animation:brushing 1700ms cubic-bezier(.36,.06,.2,1) 900ms forwards;
 }
+/* the brush itself, its tip at the wet end of the mark */
+.mark__tool{
+  position:absolute;top:50%;left:0;width:50%;height:230%;
+  transform:translate(-72%,-50%);
+  background:var(--brush) center/contain no-repeat;
+  opacity:0;pointer-events:none;
+  animation:tooling 1700ms cubic-bezier(.36,.06,.2,1) 900ms forwards;
+}
+@keyframes tooling{
+  0%{transform:translate(-72%,-50%) rotate(-2deg);opacity:0}
+  10%{opacity:1}
+  74%{opacity:1}
+  100%{transform:translate(201%,-50%) rotate(2deg);opacity:0}
+}
 @keyframes brushing{
   0%{transform:translate(-115%,-50%) rotate(-1.5deg);opacity:0}
   12%{opacity:.9}
@@ -481,6 +499,7 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
 
 :root{
   --sweep:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='200'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='.28' stop-color='%23fff' stop-opacity='1'/%3E%3Cstop offset='.52' stop-color='%23fff' stop-opacity='0'/%3E%3C/linearGradient%3E%3Cfilter id='f' x='-25%25' y='-25%25' width='150%25' height='150%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.006 .05' numOctaves='3' seed='11' result='n'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='n' scale='70' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Crect width='600' height='200' fill='url(%23g)' filter='url(%23f)'/%3E%3C/svg%3E");
+  --brush:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-120 -180 240 360'%3E%3Cg transform='rotate(32)'%3E%3Crect x='-7' y='-192' width='14' height='126' rx='7' fill='%232b2119'/%3E%3Crect x='-6' y='-188' width='5' height='118' rx='2.5' fill='%234a3927'/%3E%3Crect x='-12' y='-70' width='24' height='26' rx='3' fill='%23cdc5b5'/%3E%3Crect x='-12' y='-62' width='24' height='3.5' fill='%23a29a8a'/%3E%3Cpath d='M-11 -46 L11 -46 L7 -6 Q0 5 -7 -6 Z' fill='%23a8842a'/%3E%3Cpath d='M-6 -44 L6 -44 L4 -8 Q0 -1 -4 -8 Z' fill='%23d8b040' opacity='.8'/%3E%3C/g%3E%3C/svg%3E");
   --stroke:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='120' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%23b8912f' stroke-linecap='round'%3E%3Cpath d='M14 62 C70 44 150 76 246 56' stroke-width='44' opacity='.26'/%3E%3Cpath d='M18 60 C74 43 148 74 242 55' stroke-width='26' opacity='.24'/%3E%3Cpath d='M20 48 C78 34 152 62 240 45' stroke-width='3' opacity='.5'/%3E%3Cpath d='M20 56 C80 40 150 70 240 52' stroke-width='2.4' opacity='.44'/%3E%3Cpath d='M22 64 C84 48 154 76 238 58' stroke-width='4' opacity='.4'/%3E%3Cpath d='M22 72 C86 58 150 82 236 66' stroke-width='2' opacity='.36'/%3E%3Cpath d='M24 78 C88 64 152 88 234 72' stroke-width='2.8' opacity='.3'/%3E%3C/g%3E%3C/svg%3E");
 }
 
@@ -489,8 +508,8 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
   .shell{gap:.6rem}
   .bar--bottom{flex-wrap:wrap;gap:.55rem}
   .label{max-width:100%;order:1;flex:1 0 100%}
-  .nowplaying{order:2;flex:0 1 auto;justify-content:flex-start;font-size:.6rem;max-width:52vw;padding-bottom:0}
-  .dock{order:3;margin-left:auto}
+  .corner{order:2;margin-left:auto;align-items:flex-end}
+  .nowplaying{font-size:.6rem;max-width:60vw}
   .label__note{display:none}
   .label__title{font-size:1.16rem}
   .label__meta{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80vw}

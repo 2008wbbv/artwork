@@ -13,7 +13,7 @@
 
 </div>
 
-Twenty-five minutes of focus is twenty-five minutes of brushwork. A toned ground goes down first, then a thin lay-in of the composition, then five passes: broad blocked-in bands off a heavily blurred reduction of the picture, down to fine detail concentrated on the edges. Each mark is a real brush stroke — it curves along the local image gradient the way a loaded brush actually travels, tapers at both ends, and drags a few bristles of slightly different paint behind it. Broad brushes lay bands; fine ones come to a point. The last few minutes glaze the real file on in thin increments, so the picture resolves exactly as the clock reaches zero.
+Twenty-five minutes of focus is twenty-five minutes of brushwork. It starts on a bare toned canvas — the picture is never underneath, waiting to be uncovered. Every mark is a brush stroke that you watch being made: it travels along its path in real time, curving with the local image gradient the way a loaded brush does, tapering at both ends, dragging a few bristles of slightly different paint behind it. Five passes, broad blunt bands down to fine points on the edges, and the last of them lands exactly as the clock reaches zero. Around fourteen thousand strokes, one at a time.
 
 <img src="docs/stages.jpg" alt="the same painting at four stages of completion" width="100%">
 
@@ -43,7 +43,7 @@ Then open `http://localhost:8000`. To publish, drop it on any static host — th
 
   <sup>Van Gogh's *Madame Roulin and Her Baby*, filling the screen and hung on the wall.</sup>
 
-- **An interface that gets out of the way.** The clock sits in the middle of the screen until you start; then it steps aside into the corner and leaves the wall to the picture. After a few still seconds the rest fades too. The brightness under each cluster of type is measured live, and only that patch of picture is darkened, so the text never fights the painting.
+- **An interface that gets out of the way.** The clock sits in the middle of the screen until you start; then it steps aside into the corner and leaves the wall to the picture. Hold still for six seconds and everything except the clock fades to nothing — move the mouse and it comes back. The brightness under each cluster of type is measured live, and only that patch of picture is darkened, so the text never fights the painting.
 
 <img src="docs/playlists.jpg" alt="the playlist drawer" width="49%"> <img src="docs/badges.jpg" alt="the badge shelf" width="49%">
 
@@ -65,6 +65,7 @@ Responses are cached for the best part of a day. Pictures start from the museum'
 |---|---|
 | <kbd>space</kbd> | start · pause |
 | <kbd>s</kbd> <kbd>r</kbd> | skip the interval · reset it |
+| <kbd>+</kbd> <kbd>−</kbd> | five minutes more or less — the brush keeps pace |
 | <kbd>n</kbd> | another painting |
 | <kbd>m</kbd> | radio on · off |
 | <kbd>p</kbd> <kbd>b</kbd> <kbd>,</kbd> | playlists · badges · settings |

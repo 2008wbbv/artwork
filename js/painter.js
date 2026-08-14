@@ -16,6 +16,8 @@ import { mulberry32, hashStr, clamp, lerp, smoothstep, reducedMotion } from './u
 
 const TAU = Math.PI * 2;
 const MAX_PIXELS = 5.2e6;
+const MAX_WET = 22;      // brushes on the canvas at once
+const BURST = 60;        // beyond this many strokes behind, stop animating and catch up
 
 /* size fraction of the short edge · which blur level to sample ·
    how much of the interval this layer owns · how picky it is about detail */
@@ -23,14 +25,18 @@ const LAYERS = [
   { t0:0,   t1:.09, size:.120, mip:3, over:2.4, elong:2.1, wide:.84, alpha:[.42,.62], detail:0,   segs:7, bristle:3, blunt:[.58,.78], halo:.34 },
   { t0:.09, t1:.32, size:.056, mip:2, over:1.9, elong:2.3, wide:.70, alpha:[.52,.74], detail:0,   segs:6, bristle:3, blunt:[.44,.64], halo:.22 },
   { t0:.32, t1:.60, size:.027, mip:1, over:1.6, elong:2.4, wide:.58, alpha:[.62,.84], detail:.12, segs:5, bristle:2, blunt:[.32,.52], halo:0   },
-  { t0:.60, t1:.85, size:.0132,mip:0, over:1.3, elong:2.3, wide:.52, alpha:[.60,.86], detail:.44, segs:4, bristle:2, blunt:[.24,.44], halo:0   },
-  { t0:.85, t1:1,   size:.0068,mip:0, over:1.0, elong:2.2, wide:.48, alpha:[.55,.82], detail:.70, segs:3, bristle:1, blunt:[.18,.38], halo:0   },
+  { t0:.60, t1:.85, size:.0132,mip:0, over:1.35,elong:2.3, wide:.52, alpha:[.60,.86], detail:.38, segs:4, bristle:2, blunt:[.24,.44], halo:0   },
+  { t0:.85, t1:1,   size:.0064,mip:0, over:1.25,elong:2.2, wide:.48, alpha:[.55,.82], detail:.56, segs:3, bristle:1, blunt:[.18,.38], halo:0   },
 ];
 
 export class Painter {
   constructor(canvas) {
     this.cv = canvas;
     this.ctx = canvas.getContext('2d', { alpha: false });
+    // paint that has dried; the wet strokes are re-drawn over it every frame
+    this.settled = document.createElement('canvas');
+    this.sctx = this.settled.getContext('2d', { alpha: false });
+    this.active = [];
 
     this.mips = [];
     this.data = [];
@@ -43,14 +49,13 @@ export class Painter {
     this.progress = 0;
     this.catchUp = false;
     this.dissolve = 0;
-    this.glazeAt = 0;
+    this.dirty = true;
     this.seed = 1;
     this.ground = '#141210';
     this.groundLuma = .1;
     this.accent = '#c9a227';
     this.accentHsl = [.116, .68, .53];
     this.lowMotion = reducedMotion();
-    this.glazeMax = .55;
     this.fit = 'fill';                 // 'fill' bleeds off the edges · 'frame' hangs it on a wall
     this.wall = '#0f0e0d';
     this._min = 900;                   // short edge, for the flow field
@@ -72,6 +77,7 @@ export class Painter {
     this.W = w; this.H = h; this.dpr = dpr;
     this._toothPat = null;
     this.cv.width = w; this.cv.height = h;
+    this.settled.width = w; this.settled.height = h;
     this.cv.style.width = cssW + 'px';
     this.cv.style.height = cssH + 'px';
     return true;
@@ -97,9 +103,8 @@ export class Painter {
     this.fit = fit;
     if (!this.img) return;
     this._buildPlan();
-    this._gauge();
     this.drawn = 0;
-    this.glazeAt = 0;
+    this.active.length = 0;
     this.dissolve = 0;
     this._ground();
     this.target = this._targetFor(this.progress);
@@ -117,22 +122,13 @@ export class Painter {
     this._gradients();
     this._analyse();
     this._buildPlan();
-    this._gauge();
     this.drawn = 0;
-    this.glazeAt = 0;
+    this.active.length = 0;
     // the new wash goes down over the old picture, the way a canvas gets reused
     this.dissolve = hadPicture && !this.lowMotion ? 1 : 0;
     this._diss = 0;
     if (!this.dissolve) this._ground();
     this.catchUp = true;
-  }
-
-  /** how far the file is being stretched decides how far the picture can resolve */
-  _gauge() {
-    const rect = this.plan?.rect || this._rect();
-    const src = this.img?.naturalWidth || 1;
-    const up = rect.w / src;
-    this.glazeMax = up > 2.1 ? .30 : up > 1.35 ? .44 : .58;
   }
 
   /** the sharper file arrived mid-interval: keep every stroke, sample better from here on */
@@ -143,7 +139,6 @@ export class Painter {
     this._buildMips();
     this._readPixels();
     this._gradients();
-    this._gauge();
   }
 
   _buildMips() {
@@ -244,7 +239,7 @@ export class Painter {
   }
 
   _ground(alpha = 1, tooth = true) {
-    const g = this.ctx;
+    const g = this.sctx;
     const rect = this.plan?.rect || this._rect();
     const framed = this.fit === 'frame';
     g.setTransform(1, 0, 0, 1, 0, 0);
@@ -270,11 +265,6 @@ export class Painter {
       g.fillRect(0, 0, this.W, this.H);
     }
 
-    // the lay-in: masses and light only, far too soft to read as a photograph
-    if (this.mips[3]) {
-      g.globalAlpha = .34 * alpha;
-      g.drawImage(this.mips[3], rect.x, rect.y, rect.w, rect.h);
-    }
     // a little tooth, so gaps between strokes read as canvas
     if (tooth) {
       g.globalAlpha = .05 * alpha;
@@ -282,6 +272,7 @@ export class Painter {
       framed ? g.fillRect(rect.x, rect.y, rect.w, rect.h) : g.fillRect(0, 0, this.W, this.H);
     }
     g.globalAlpha = 1;
+    this.dirty = true;
   }
 
   /** one tile of canvas weave, reused for every picture */
@@ -296,7 +287,7 @@ export class Painter {
     g.fillStyle = '#000';
     for (let i = 0, n = (s * s) / (step * step * 26); i < n; i++)
       g.fillRect(rnd() * s, rnd() * s, step, step * .6);
-    this._toothPat = this.ctx.createPattern(c, 'repeat');
+    this._toothPat = this.sctx.createPattern(c, 'repeat');
     return this._toothPat;
   }
 
@@ -380,7 +371,7 @@ export class Painter {
     if (t < this.drawn) {                       // rewound: the canvas has to be scraped back
       this._ground();
       this.drawn = 0;
-      this.glazeAt = 0;
+      this.active.length = 0;
       this.catchUp = true;
     }
     this.target = t;
@@ -422,77 +413,91 @@ export class Painter {
     return segs;
   }
 
-  /** the outline of a loaded brush: fat through the belly, tapering to the tips */
-  _outline(g, segs, wid, blunt) {
+  /** a point along the stroke's path at a fractional position */
+  _at(segs, t, out) {
     const px = this._px, py = this._py;
-    const half = k => {
-      const t = k / segs;
-      return wid * .5 * (blunt + (1 - blunt) * Math.pow(Math.sin(Math.PI * t), .55));
-    };
-    const nx = [], ny = [];
-    for (let k = 0; k <= segs; k++) {
-      const a = k === 0 ? Math.atan2(py[1] - py[0], px[1] - px[0])
-        : Math.atan2(py[k] - py[k - 1], px[k] - px[k - 1]);
-      nx[k] = -Math.sin(a) * half(k);
-      ny[k] = Math.cos(a) * half(k);
+    const f = clamp(t, 0, 1) * segs;
+    const k = Math.min(segs - 1, Math.floor(f)), u = f - k;
+    out[0] = px[k] + (px[k + 1] - px[k]) * u;
+    out[1] = py[k] + (py[k + 1] - py[k]) * u;
+    out[2] = Math.atan2(py[k + 1] - py[k], px[k + 1] - px[k]);
+    return out;
+  }
+
+  /** the outline of a loaded brush — fat through the belly, tapering to the
+      tips — for the part of the path between t0 and t1 */
+  _outline(g, segs, wid, blunt, t0 = 0, t1 = 1) {
+    const n = Math.max(2, Math.ceil((t1 - t0) * segs * 1.6));
+    const ax = [], ay = [], bx = [], by = [];
+    const p = [0, 0, 0];
+    for (let j = 0; j <= n; j++) {
+      const t = t0 + (t1 - t0) * (j / n);
+      this._at(segs, t, p);
+      const half = wid * .5 * (blunt + (1 - blunt) * Math.pow(Math.sin(Math.PI * t), .55));
+      const ox = -Math.sin(p[2]) * half, oy = Math.cos(p[2]) * half;
+      ax[j] = p[0] + ox; ay[j] = p[1] + oy;
+      bx[j] = p[0] - ox; by[j] = p[1] - oy;
     }
-    // through midpoints with quadratics, so the edge of the mark curves rather than facets
     g.beginPath();
-    g.moveTo(px[0] + nx[0], py[0] + ny[0]);
-    for (let k = 1; k < segs; k++)
-      g.quadraticCurveTo(px[k] + nx[k], py[k] + ny[k],
-        (px[k] + nx[k] + px[k + 1] + nx[k + 1]) / 2, (py[k] + ny[k] + py[k + 1] + ny[k + 1]) / 2);
-    g.lineTo(px[segs] + nx[segs], py[segs] + ny[segs]);
-    g.lineTo(px[segs] - nx[segs], py[segs] - ny[segs]);
-    for (let k = segs - 1; k > 0; k--)
-      g.quadraticCurveTo(px[k] - nx[k], py[k] - ny[k],
-        (px[k] - nx[k] + px[k - 1] - nx[k - 1]) / 2, (py[k] - ny[k] + py[k - 1] - ny[k - 1]) / 2);
+    g.moveTo(ax[0], ay[0]);
+    for (let j = 1; j < n; j++)
+      g.quadraticCurveTo(ax[j], ay[j], (ax[j] + ax[j + 1]) / 2, (ay[j] + ay[j + 1]) / 2);
+    g.lineTo(ax[n], ay[n]);
+    g.lineTo(bx[n], by[n]);
+    for (let j = n - 1; j > 0; j--)
+      g.quadraticCurveTo(bx[j], by[j], (bx[j] + bx[j - 1]) / 2, (by[j] + by[j - 1]) / 2);
     g.closePath();
   }
 
   /** the hairs the brush drags through the wet paint */
-  _bristles(g, segs, wid, n, r, gg, b, alpha, seed) {
-    const px = this._px, py = this._py;
+  _bristles(g, segs, wid, n, r, gg, b, alpha, seed, t1 = 1) {
+    const p = [0, 0, 0];
+    const steps = Math.max(2, Math.ceil(t1 * segs * 1.6));
     g.lineCap = 'round';
     g.lineJoin = 'round';
     g.lineWidth = Math.max(.6, wid * .13);
     for (let h = 0; h < n; h++) {
       const off = ((h + 1) / (n + 1) - .5) * wid * .78;
       const k = 1 + ((seed + h * 7) % 5) * .045;          // each hair carries slightly different paint
-      const skip = ((seed + h * 3) % 4) === 0 ? 1 : 0;    // and some run dry before the end
+      const from = ((seed + h * 3) % 4) === 0 ? .12 : .04; // and some start late
+      if (t1 <= from) continue;
       g.globalAlpha = alpha * .42;
       g.strokeStyle = `rgb(${clamp(r * k, 0, 255) | 0},${clamp(gg * k, 0, 255) | 0},${clamp(b * k, 0, 255) | 0})`;
       g.beginPath();
-      for (let j = skip; j <= segs - skip; j++) {
-        const a = Math.atan2(py[Math.min(j + 1, segs)] - py[Math.max(j - 1, 0)],
-                             px[Math.min(j + 1, segs)] - px[Math.max(j - 1, 0)]);
-        const taper = Math.pow(Math.sin(Math.PI * (j / segs)), .4);
-        const x = px[j] - Math.sin(a) * off * taper;
-        const y = py[j] + Math.cos(a) * off * taper;
-        j === skip ? g.moveTo(x, y) : g.lineTo(x, y);
+      for (let j = 0; j <= steps; j++) {
+        const t = from + (t1 - from) * (j / steps);
+        this._at(segs, t, p);
+        const taper = Math.pow(Math.sin(Math.PI * t), .4);
+        const wob = off * taper * (1 + .2 * Math.sin(t * 9 + h * 2.3));   // hairs weave, they don't run parallel
+        const x = p[0] - Math.sin(p[2]) * wob;
+        const y = p[1] + Math.cos(p[2]) * wob;
+        j === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
       }
       g.stroke();
     }
   }
 
-  _stroke(i) {
-    const P = this.plan, g = this.ctx;
+  /** paint stroke i into g, as far along as `upTo` */
+  _stroke(i, g, upTo = 1) {
+    const P = this.plan;
     const L = P.bounds[P.lay[i]];
     const x = P.xs[i], y = P.ys[i], s = P.sz[i];
     const len = s * L.elong * P.lm[i];
     const wid = s * L.wide;
     const segs = this._path(x, y, P.an[i], len, L.segs);
     const blunt = lerp(L.blunt[0], L.blunt[1], (i % 5) / 4);   // a broad brush lays bands, a fine one points
+    const t = clamp(upTo, .02, 1);
+    const box = this._box(segs, wid);
 
     if (this.tainted) {                                   // no pixel access: reveal through the shape
       g.save();
-      this._outline(g, segs, wid, blunt);
+      this._outline(g, segs, wid, blunt, 0, t);
       g.clip();
       g.globalAlpha = P.al[i];
       g.drawImage(this.mips[L.mip], P.rect.x, P.rect.y, P.rect.w, P.rect.h);
       g.restore();
       g.globalAlpha = 1;
-      return;
+      return box;
     }
 
     const im = this.data[L.mip];
@@ -509,16 +514,47 @@ export class Painter {
     if (L.halo) {                                         // the broad passages sit in a wash
       g.globalAlpha = P.al[i] * L.halo;
       g.fillStyle = paint;
-      this._outline(g, segs, wid * 1.5, .55);
+      this._outline(g, segs, wid * 1.5, .55, 0, t);
       g.fill();
     }
     g.globalAlpha = P.al[i];
     g.fillStyle = paint;
-    this._outline(g, segs, wid, blunt);
+    this._outline(g, segs, wid, blunt, 0, t);
     g.fill();
 
-    if (L.bristle && wid > 5) this._bristles(g, segs, wid, L.bristle, r, gg, b, P.al[i], i);
+    if (L.bristle && wid > 5) this._bristles(g, segs, wid, L.bristle, r, gg, b, P.al[i], i, t);
+
+    if (t < 1 && wid > 3) {                               // the wet tip, where the brush is right now
+      const p = this._at(segs, t, [0, 0, 0]);
+      g.globalAlpha = P.al[i] * .5;
+      g.fillStyle = `rgb(${clamp(r * 1.1, 0, 255) | 0},${clamp(gg * 1.1, 0, 255) | 0},${clamp(b * 1.1, 0, 255) | 0})`;
+      g.beginPath();
+      g.ellipse(p[0], p[1], wid * .42, wid * .5, p[2], 0, TAU);
+      g.fill();
+    }
     g.globalAlpha = 1;
+    return box;
+  }
+
+  /** the patch of canvas a stroke can reach, clamped to the frame */
+  _box(segs, wid) {
+    const px = this._px, py = this._py;
+    let x0 = px[0], x1 = px[0], y0 = py[0], y1 = py[0];
+    for (let k = 1; k <= segs; k++) {
+      if (px[k] < x0) x0 = px[k]; else if (px[k] > x1) x1 = px[k];
+      if (py[k] < y0) y0 = py[k]; else if (py[k] > y1) y1 = py[k];
+    }
+    const pad = wid * 1.3 + 3;
+    x0 = Math.max(0, Math.floor(x0 - pad)); y0 = Math.max(0, Math.floor(y0 - pad));
+    x1 = Math.min(this.W, Math.ceil(x1 + pad)); y1 = Math.min(this.H, Math.ceil(y1 + pad));
+    return x1 > x0 && y1 > y0 ? [x0, y0, x1 - x0, y1 - y0] : null;
+  }
+
+  /** how long this stroke should take to lay down, in ms */
+  _duration(i) {
+    const P = this.plan, L = P.bounds[P.lay[i]];
+    const len = P.sz[i] * L.elong * P.lm[i];
+    return clamp(len / (.62 * this.dpr) * 1.6, 190, 1150);
   }
 
   /** called every animation frame; keeps within a strict time budget */
@@ -535,37 +571,66 @@ export class Painter {
       const a = (smoothstep(now) - smoothstep(was)) / Math.max(.001, 1 - smoothstep(was));
       this._ground(clamp(a, 0, 1), this.dissolve === 0);
       if (this.dissolve === 0) this._ground(1);
+      this._present();
       return;
     }
 
-    if (this.drawn < this.target) {
-      const budget = this.catchUp ? 11 : 6;
+    const behind = this.target - this.drawn - this.active.length;
+
+    // a long way behind — a replay, a resize, or a picture arriving mid-interval.
+    // Those go straight onto the dry layer, as fast as the frame will allow.
+    if (this.catchUp || behind > BURST) {
       const t0 = performance.now();
-      const R = this.plan.rect;
-      const framed = this.fit === 'frame';
-      if (framed) {                                  // keep the paint on the canvas, not the wall
-        this.ctx.save();
-        this.ctx.beginPath();
-        this.ctx.rect(R.x, R.y, R.w, R.h);
-        this.ctx.clip();
+      while (this.drawn < this.target - this.active.length) {
+        this._stroke(this.drawn++, this.sctx);
+        if ((this.drawn & 31) === 0 && performance.now() - t0 > 11) break;
       }
-      while (this.drawn < this.target) {
-        this._stroke(this.drawn++);
-        if ((this.drawn & 63) === 0 && performance.now() - t0 > budget) break;
-      }
-      if (framed) this.ctx.restore();
-      if (this.drawn >= this.target) this.catchUp = false;
+      this.dirty = true;
+      if (this.drawn >= this.target - this.active.length) this.catchUp = false;
+      this._present();
+      return;
     }
 
-    // the last minutes bring the picture into focus — glazed on in thin increments
-    const want = smoothstep(clamp((this.progress - .82) / .18, 0, 1)) * (this.glazeMax ?? .55);
-    if (want > this.glazeAt + .006 && this.img) {
-      const step = (want - this.glazeAt) / (1 - this.glazeAt);
-      const c = this.ctx;
-      c.globalAlpha = clamp(step, 0, 1);
-      c.drawImage(this.img, this.plan.rect.x, this.plan.rect.y, this.plan.rect.w, this.plan.rect.h);
-      c.globalAlpha = 1;
-      this.glazeAt = want;
+    // otherwise: begin as many strokes as the schedule is asking for, and let
+    // each one travel. Nothing appears fully formed.
+    const want = clamp(1 + Math.ceil(behind * .5), 1, MAX_WET);
+    while (this.drawn + this.active.length < this.target && this.active.length < want)
+      this.active.push({ i: this.drawn + this.active.length, t: 0, d: this._duration(this.drawn + this.active.length) });
+
+    let settledAny = false;
+    for (let k = this.active.length - 1; k >= 0; k--) {
+      const a = this.active[k];
+      a.t += dt / a.d;
+      if (a.t >= 1 && a.i === this.drawn) {          // strokes dry in the order they were begun
+        this._stroke(a.i, this.sctx);
+        this.drawn++;
+        this.active.splice(k, 1);
+        settledAny = true;
+      }
+    }
+    // a stroke that finished out of order waits its turn without moving further
+    for (const a of this.active) if (a.t > 1) a.t = 1;
+    if (settledAny) this.dirty = true;
+    this._present();
+  }
+
+  /** dry paint, then whatever the brush is in the middle of. Only the patches
+      under a moving brush are re-drawn; the rest of the canvas is left alone. */
+  _present() {
+    const ctx = this.ctx;
+    const wet = this._wet || (this._wet = []);
+    if (!this.dirty && !this.active.length && !wet.length) return;
+    ctx.globalAlpha = 1;
+    if (this.dirty) {
+      ctx.drawImage(this.settled, 0, 0);          // ground changed, or a burst of dry strokes
+      this.dirty = false;
+    } else {
+      for (const b of wet) ctx.drawImage(this.settled, b[0], b[1], b[2], b[3], b[0], b[1], b[2], b[3]);
+    }
+    wet.length = 0;
+    for (const a of this.active) {
+      const b = this._stroke(a.i, ctx, a.t);
+      if (b) wet.push(b);
     }
   }
 
@@ -574,7 +639,7 @@ export class Painter {
     if (!this.setSize() || !this.img) return;
     this._buildPlan();
     this.drawn = 0;
-    this.glazeAt = 0;
+    this.active.length = 0;
     this.dissolve = 0;
     this._ground();
     this.target = this._targetFor(this.progress);

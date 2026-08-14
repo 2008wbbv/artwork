@@ -37,6 +37,13 @@ const OFFLINE_CARD = {
   museumShort: 'artwork', gallery: '', url: '#', credit: '',
 };
 
+// the painting is pinned to the clock: however the interval is stretched, the
+// brush carries on from where it is and re-fits what is left
+let pin = { p: 0, left: 0 };
+const repin = p => { pin = { p, left: Math.max(1000, timer.left) }; };
+const paintProgress = () =>
+  pin.p + (1 - pin.p) * (1 - Math.min(1, Math.max(0, timer.left / pin.left)));
+
 let swapping = false;        // holding the old picture while the next one loads
 let hanging = 0;             // only the most recent request gets to hang
 const firstRun = !load('settings', null);
@@ -89,6 +96,7 @@ ui.renderPlaylists();
 timer.onstate = t => ui.setState(t);
 
 timer.onphase = ({ phase, completed }) => {
+  repin(0);
   ui.setState(timer);
   hang({ silent: true });
   if (completed && settings.chimes) {
@@ -121,9 +129,9 @@ function frame(now) {
     ui.setClock(fmtClock(timer.left), timer.left);
   }
   if (!swapping) {
-    const p = timer.state === 'idle' && timer.progress <= 0 ? .02 : Math.max(.02, timer.progress);
-    painter.setProgress(p);
-    ui.setProgress(timer.progress);
+    const p = paintProgress();
+    painter.setProgress(Math.max(.006, p));   // a few marks on the canvas before you begin
+    ui.setProgress(p);
   }
   painter.frame(dt);
 
@@ -142,7 +150,17 @@ ui.on = {
     if (timer.state === 'running' && settings.radioOn && !radio.playing) radio.play();
   },
   skip() { timer.skip(); },
-  reset() { timer.reset(); ui.setClock(fmtClock(timer.left), timer.left); },
+  reset() { timer.reset(); repin(0); ui.setClock(fmtClock(timer.left), timer.left); },
+  stretch(dir) {
+    const here = paintProgress();
+    if (!timer.stretch(dir * 5 * 60000)) return;
+    repin(here);                                   // the paint stays put; the rest re-fits
+    persist();
+    ui.setClock(fmtClock(timer.left), timer.left);
+    if (!$('#panel-settings').hidden) ui.renderSettings();
+    ui.toast({ kicker: timer.label, name: `${Math.round(timer.duration / 60000)} minutes`,
+               seal: dir > 0 ? '+' : '−', ms: 2000 });
+  },
   nextArt() { hang({ silent: true }); },
   playlist(id) { ui.closeDrawer(); choosePlaylist(id); },
   toggleRadio() {
@@ -180,6 +198,7 @@ ui.on = {
     if (key === 'recede') value ? ui.armHush() : ui.unhush();
     if (['focusMin', 'shortMin', 'longMin'].includes(key) && timer.state === 'idle') {
       timer.reset();                       // takes the new length; a running interval keeps its own
+      repin(0);
       ui.setClock(fmtClock(timer.left), timer.left);
     }
     if (key === 'longEvery') ui.drawCycle(timer);
@@ -211,6 +230,7 @@ ui.setPlaylistChip(byId(settings.playlist), 0);
 ui.setGrain(settings.grain);
 ui.setClock(fmtClock(timer.left), timer.left);
 ui.setState(timer);
+repin(0);
 ui.setRadioUI(radio);
 requestAnimationFrame(frame);
 

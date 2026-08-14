@@ -61,6 +61,21 @@ export class Timer {
   /** move on without finishing — no credit, no badge */
   skip() { this._advance(false); }
 
+  /** lengthen or shorten this interval on the spot; the brush keeps pace.
+      The new length is remembered for the next interval of the same kind. */
+  stretch(ms) {
+    const span = Math.min(180, Math.max(1, (this.span + ms) / 60000)) * 60000;
+    const delta = span - this.span;
+    if (!delta) return 0;
+    this.span = span;
+    this.left = Math.max(1000, this.left + delta);
+    if (this.state === 'running') this.endAt = Date.now() + this.left;
+    const key = this.phase === 'focus' ? 'focusMin' : this.phase === 'short' ? 'shortMin' : 'longMin';
+    this.s[key] = Math.round(span / 60000);
+    this.onstate(this);
+    return delta;
+  }
+
   /** call once per frame */
   update() {
     if (this.state !== 'running') return false;

@@ -70,12 +70,13 @@
       </figcaption>
     </figure>
 
-    <div class="nowplaying" id="nowplaying" hidden>
-      <i class="eq" aria-hidden="true"><b></b><b></b><b></b></i>
-      <span id="np-text"></span>
-    </div>
+    <div class="corner">
+      <div class="nowplaying" id="nowplaying" hidden>
+        <i class="eq" aria-hidden="true"><b></b><b></b><b></b></i>
+        <span id="np-text"></span>
+      </div>
 
-    <nav class="dock" aria-label="Controls">
+      <nav class="dock" aria-label="Controls">
       <button class="ico" id="btn-next-art" title="Another painting (N)" aria-label="Another painting">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17.5c3.2-9 6.4-9 8.6-4.5s5.4 4.5 7.4-2.2"/><path d="M17.4 3.6 20.8 7l-3.4 3.4"/></svg>
       </button>
@@ -88,7 +89,8 @@
       <button class="ico" id="btn-settings" title="Settings (,)" aria-label="Settings">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.1"/><path d="M12 2.6v2.6M12 18.8v2.6M21.4 12h-2.6M5.2 12H2.6M18.6 5.4l-1.8 1.8M7.2 16.8l-1.8 1.8M18.6 18.6l-1.8-1.8M7.2 7.2 5.4 5.4"/></svg>
       </button>
-    </nav>
+      </nav>
+    </div>
   </footer>
 
 </div>
@@ -123,6 +125,7 @@
       <span class="mark__ink">artwork</span>
       <span class="mark__paint" aria-hidden="true">artwork</span>
       <i class="mark__brush" aria-hidden="true"></i>
+      <i class="mark__tool" aria-hidden="true"></i>
     </h1>
     <button class="btn btn--primary btn--lg" id="intro-go">Begin a session</button>
   </div>

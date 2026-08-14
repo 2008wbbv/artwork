@@ -328,6 +328,7 @@ export class UI {
         <dl class="keys">
           <dt><kbd>space</kbd></dt><dd>start · pause</dd>
           <dt><kbd>s</kbd><kbd>r</kbd></dt><dd>skip the interval · reset it</dd>
+          <dt><kbd>+</kbd><kbd>−</kbd></dt><dd>five minutes more or less — the brush keeps pace</dd>
           <dt><kbd>n</kbd></dt><dd>another painting</dd>
           <dt><kbd>m</kbd></dt><dd>radio on · off</dd>
           <dt><kbd>p</kbd><kbd>b</kbd><kbd>,</kbd></dt><dd>playlists · badges · settings</dd>
@@ -429,6 +430,8 @@ export class UI {
       else if (k === 'b') this.toggleDrawer('badges');
       else if (k === 'p') this.toggleDrawer('playlists');
       else if (k === ',') this.toggleDrawer('settings');
+      else if (k === '+' || k === '=') this.on.stretch?.(1);
+      else if (k === '-' || k === '_') this.on.stretch?.(-1);
       else if (k === '?' || k === '/') this.openDrawer('settings');
     });
   }
