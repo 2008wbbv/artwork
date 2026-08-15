@@ -126,6 +126,9 @@ function hash(s) {
   return h >>> 0;
 }
 
+/** an empty frame brings its own look; a hung one is derived from the picture */
+export const styleOf = h => (h.ghost ? h.st : style(h));
+
 export function style(h) {
   const n = hash(h.k);
   const paper = ON_PAPER.test(h.a.medium || '');
@@ -136,6 +139,53 @@ export function style(h) {
     drop: [-32, -16, 0, 14, 28, -10, 22, -24][(n >>> 8) % 8],
     shift: [-14, 8, -6, 16, 0, -18, 10, 4][(n >>> 12) % 8],
   };
+}
+
+/* Every wall keeps a few frames with nothing in them yet. A gallery
+   that is finished is a gallery that has stopped, and the empty ones
+   say plainly what the museum is for: they fill as you work. Sized
+   and framed like the rest so they read as waiting rather than as a
+   mistake. */
+const WAITING = [
+  'Whatever is on the screen when this interval ends.',
+  'A picture you have not seen yet.',
+  'Reserved. Twenty-five minutes buys it.',
+  'Empty, for now.',
+  'The next one, whichever it turns out to be.',
+];
+
+export function ghosts(roomId, n = 3) {
+  return Array.from({ length: n }, (_, i) => {
+    const h = hash(roomId + ':ghost:' + i);
+    return {
+      ghost: true,
+      k: `ghost:${roomId}:${i}`,
+      note: WAITING[h % WAITING.length],
+      st: {
+        frame: FRAME_POOLS.middle[(h >>> 16) % FRAME_POOLS.middle.length],
+        mat: (h >>> 20) % 3 === 0,
+        size: [.78, .9, 1, 1.1][(h >>> 4) % 4],
+        drop: [-24, -8, 12, 26][(h >>> 8) % 4],
+        shift: [-10, 6, -4, 12][(h >>> 12) % 4],
+        // a canvas has a shape even when there is nothing on it
+        ratio: [1.28, .82, 1, 1.44, .74][(h >>> 24) % 5],
+      },
+    };
+  });
+}
+
+/** empty frames belong among the hung ones, not queued up after them */
+export function weave(works, waiting) {
+  if (!works.length) return waiting;
+  const out = [];
+  const every = Math.max(2, Math.round(works.length / (waiting.length + 1)));
+  let g = 0;
+  works.forEach((w, i) => {
+    out.push(w);
+    if (g < waiting.length && (i + 1) % every === 0) out.push(waiting[g++]);
+  });
+  while (g < waiting.length) out.push(waiting[g++]);
+  return out;
 }
 
 /* A salon hang: pictures crowd into the same horizontal run, small ones
@@ -149,7 +199,7 @@ export function columns(works, budget = 2.05) {
     const take = [];
     let room = budget;                             // how much wall this column can carry
     while (i < works.length && take.length < 3) {
-      const st = style(works[i]);
+      const st = styleOf(works[i]);
       if (take.length && st.size > room) break;
       take.push(works[i]);
       room -= st.size;

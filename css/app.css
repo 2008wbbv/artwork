@@ -529,8 +529,8 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
 /* it belongs to the picture, so it fades with everything else */
 .shell[data-recede="1"] ~ .dockplayer{opacity:0;pointer-events:none;transition:opacity 1s var(--ease)}
 
-/* ---------- the tape ---------- */
-.sect--tape{position:relative}
+/* ---------- the tape, and the fellow who watches it ---------- */
+.sect--tape{position:relative;padding-bottom:3.6rem}
 .tag{
   margin-left:.5rem;padding:.1rem .38rem;border-radius:2px;font-size:.5rem;letter-spacing:.16em;
   color:var(--ink-4);border:1px solid var(--line-2);vertical-align:.1em;
@@ -542,6 +542,32 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
   text-decoration-color:var(--line);
 }
 .lnk:hover{text-decoration-color:var(--accent)}
+/* he stands in the corner of his own section */
+.steve{
+  position:absolute;right:0;bottom:.4rem;width:58px;height:66px;
+  opacity:.55;transition:opacity var(--mid) var(--ease);
+}
+.sect--tape:hover .steve{opacity:.9}
+.steve svg{width:100%;height:100%;overflow:visible}
+.steve__arm{transform-origin:15px 12px;animation:swing 1.9s var(--ease) infinite}
+.steve__block{animation:knock 1.9s var(--ease) infinite}
+.steve__body{animation:bob 1.9s var(--ease) infinite}
+/* the pick hangs down, so anticlockwise is the swing that reaches the block */
+@keyframes swing{
+  0%,100%{transform:rotate(14deg)}
+  40%{transform:rotate(-20deg)}
+  48%{transform:rotate(-17deg)}
+}
+@keyframes knock{
+  0%,38%,56%,100%{transform:none}
+  44%{transform:translate(1px,1px)}
+  50%{transform:translate(-.5px,0)}
+}
+@keyframes bob{0%,100%{transform:none}40%{transform:translateY(.6px)}}
+@media (prefers-reduced-motion:reduce){
+  .steve__arm,.steve__block,.steve__body{animation:none}
+  .steve__arm{transform:rotate(-16deg)}
+}
 
 /* ---------- badges ---------- */
 .badges{display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem}
@@ -776,6 +802,20 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
 }
 .hung__mat{display:block;padding:clamp(9px,.8vw,15px);background:linear-gradient(#efe8d8,#ded4bf);
   box-shadow:inset 0 2px 6px rgba(0,0,0,.35)}
+/* a frame with nothing in it yet — quieter than the rest, and plainly waiting */
+.hung--ghost{opacity:.34;transition:opacity 420ms var(--ease),transform 420ms var(--ease),filter 420ms var(--ease)}
+.hung--ghost:hover,.hung--ghost:focus-visible{opacity:.72}
+.wall:hover .hung--ghost:not(:hover){filter:brightness(.9)}
+.hung--ghost .hung__frame{box-shadow:0 8px 20px rgba(0,0,0,.4),0 0 0 1px rgba(0,0,0,.45)}
+.hung--ghost .hung__mat{background:linear-gradient(#d8d1c2,#c6bea9)}
+.hung__void{
+  display:block;background:
+    repeating-linear-gradient(90deg,rgba(0,0,0,.05) 0 1px,rgba(0,0,0,0) 1px 3px),
+    repeating-linear-gradient(0deg,rgba(0,0,0,.05) 0 1px,rgba(0,0,0,0) 1px 3px),
+    linear-gradient(160deg,#2a2621,#1d1a16 60%,#242019);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.5),inset 0 3px 12px rgba(0,0,0,.5);
+}
+.hung--ghost::before{opacity:0}
 .hung--nomat .hung__mat{padding:0;background:none;box-shadow:none}
 .hung canvas{display:block;box-shadow:0 0 0 1px rgba(0,0,0,.45);background:#151310}
 .hung__tag{

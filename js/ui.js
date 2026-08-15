@@ -7,9 +7,56 @@ import { STATIONS, DISCOVER_TAGS, discover, mine, addMine, dropMine, fromFiles,
   embedFor, savedEmbed, keepEmbed, dropEmbed } from './radio.js';
 import { BADGES } from './badges.js';
 import { profile, worksBy } from './artist.js';
-import { rooms, count, when, style, columns } from './museum.js';
+import { rooms, count, when, styleOf, columns, ghosts, weave } from './museum.js';
 import { Painter } from './painter.js';
 import { loadImage } from './sources.js';
+
+/* A small blocky fellow who stands in the corner of the YouTube section,
+   swinging a pick at a block that never quite breaks. Drawn here in
+   rectangles rather than borrowed: the game's own skin file is Mojang's,
+   and this repository is public. The proportions are the classic ones —
+   eight-wide head, eight-wide body, four-wide limbs, thirty-two tall —
+   but every colour is chosen here. */
+const STEVE = `<span class="steve" aria-hidden="true">
+  <svg viewBox="0 0 30 34" shape-rendering="crispEdges">
+    <g class="steve__block">
+      <rect x="20" y="25" width="8" height="8" fill="#69893f"/>
+      <rect x="20" y="25" width="8" height="2" fill="#84b055"/>
+      <rect x="20" y="27" width="8" height="1" fill="#74994a"/>
+      <rect x="20" y="31" width="8" height="2" fill="#55702f"/>
+    </g>
+    <g class="steve__body">
+      <rect x="2"  y="9"  width="3" height="8" fill="#256d67"/>
+      <rect x="2"  y="17" width="3" height="3" fill="#9c6f4a"/>
+      <rect x="5"  y="1"  width="8" height="4" fill="#33241a"/>
+      <rect x="5"  y="5"  width="8" height="6" fill="#b8865f"/>
+      <rect x="5"  y="5"  width="8" height="1" fill="#3d2b1e"/>
+      <rect x="12" y="5"  width="1" height="6" fill="#a2734f"/>
+      <rect x="6"  y="6"  width="2" height="2" fill="#f0ece5"/>
+      <rect x="9"  y="6"  width="2" height="2" fill="#f0ece5"/>
+      <rect x="7"  y="6"  width="1" height="2" fill="#3f6f93"/>
+      <rect x="10" y="6"  width="1" height="2" fill="#3f6f93"/>
+      <rect x="7"  y="9"  width="4" height="1" fill="#7d5335"/>
+      <rect x="6"  y="9"  width="1" height="1" fill="#8f6140"/>
+      <rect x="5"  y="11" width="8" height="8" fill="#2f8f86"/>
+      <rect x="11" y="11" width="2" height="8" fill="#288078"/>
+      <rect x="5"  y="19" width="8" height="2" fill="#2b3a68"/>
+      <rect x="5"  y="21" width="4" height="9" fill="#3b4f8a"/>
+      <rect x="9"  y="21" width="4" height="9" fill="#33447a"/>
+      <rect x="5"  y="30" width="8" height="3" fill="#43434c"/>
+    </g>
+    <g class="steve__arm">
+      <rect x="13" y="11" width="4" height="7" fill="#2f8f86"/>
+      <rect x="13" y="18" width="4" height="3" fill="#b8865f"/>
+      <rect x="14" y="20" width="2" height="8" fill="#6b4b2c"/>
+      <rect x="14" y="20" width="1" height="8" fill="#7d5a37"/>
+      <rect x="11" y="27" width="8" height="2" fill="#9aa4ad"/>
+      <rect x="11" y="29" width="8" height="1" fill="#79838c"/>
+      <rect x="18" y="26" width="1" height="1" fill="#9aa4ad"/>
+      <rect x="11" y="26" width="1" height="1" fill="#9aa4ad"/>
+    </g>
+  </svg>
+</span>`;
 
 /* The section that needs a little more explaining than a one-line note. */
 const TAPE = `<section class="sect sect--tape">
@@ -26,6 +73,7 @@ const TAPE = `<section class="sect sect--tape">
     <button class="btn btn--quiet bring__wide" data-tape-go="listen">Play the sound only</button>
   </div>
   <div id="tape-state" data-on="0"></div>
+  ${STEVE}
 </section>`;
 
 const HUSH_AFTER = 6200;
@@ -248,33 +296,51 @@ export class UI {
       ? `${count()} ${count() === 1 ? 'picture' : 'pictures'} · ${list.length} ${list.length === 1 ? 'room' : 'rooms'}`
       : 'Nothing hung yet';
     const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV'];
+    const side = miniSide();
     const frame = h => {
-      const st = style(h);
-      return `<button class="hung ${st.mat ? '' : 'hung--nomat'}" data-hung="${escapeHtml(h.k)}"
+      const st = styleOf(h);
+      const cls = `hung ${st.mat ? '' : 'hung--nomat'}${h.ghost ? ' hung--ghost' : ''}`;
+      // an empty frame still needs a canvas-shaped hole in it
+      const inner = h.ghost
+        ? `<i class="hung__void" style="width:${Math.round(side * st.size * Math.min(1, st.ratio))}px;
+             height:${Math.round(side * st.size * Math.min(1, 1 / st.ratio))}px"></i>`
+        : '<canvas width="10" height="10"></canvas>';
+      return `<button class="${cls}" data-hung="${escapeHtml(h.k)}"
                 data-room="__ROOM__" data-frame="${st.frame}" data-size="${st.size}"
+                ${h.ghost ? 'data-ghost="1"' : ''}
                 style="--drop:${st.drop}px;--shift:${st.shift}px">
-        <span class="hung__frame"><span class="hung__mat"><canvas width="10" height="10"></canvas></span></span>
-        <span class="hung__tag">${escapeHtml(h.a.title)}</span>
+        <span class="hung__frame"><span class="hung__mat">${inner}</span></span>
+        <span class="hung__tag">${h.ghost ? '' : escapeHtml(h.a.title)}</span>
       </button>`;
     };
-    hall.innerHTML = list.length ? list.map((r, n) => `
+    // a wall is never finished: whatever is hung, some frames are still waiting
+    const walls = list.length ? list : [{
+      id: 'bare', name: 'Nothing yet', works: [],
+      note: 'Finish an interval and whatever was on the screen is hung here, repainted from its seed.',
+    }];
+    hall.innerHTML = walls.map((r, n) => {
+      const waiting = ghosts(r.id, r.works.length ? 3 : 7);
+      return `
       <section class="room">
         <p class="room__n">Room ${ROMAN[n] || n + 1}</p>
         <h3 class="room__name">${escapeHtml(r.name)}</h3>
         <p class="room__note">${escapeHtml(r.note || '')}</p>
-        <div class="wall">${columns(r.works, wallBudget()).map(col =>
+        <div class="wall">${columns(weave(r.works, waiting), wallBudget()).map(col =>
           `<span class="col ${col.works.length > 1 ? 'col--stacked' : ''}" data-pull="${col.pull}"
                  style="--lift:${col.lift}px;--pull:${col.pull}px">${col.works.map(frame).join('')}</span>`
         ).join('')}</div>
         <i class="bench" aria-hidden="true"></i>
         ${n % 3 === 1 ? '<i class="palm" aria-hidden="true"></i>' : ''}
-      </section>`).join('').replace(/__ROOM__/g, () => '')
-      : `<p class="museum__empty">The walls are bare. Finish an interval and whatever was on the screen is hung here, repainted from its seed.</p>`;
+      </section>`;
+    }).join('').replace(/__ROOM__/g, () => '');
     // stamp each frame with the room it hangs in
     $$('.room', hall).forEach((room, n) =>
-      $$('.hung', room).forEach(el => (el.dataset.room = list[n].id)));
+      $$('.hung', room).forEach(el => (el.dataset.room = walls[n].id)));
 
-    this._hung = new Map(list.flatMap(r => r.works.map(h => [r.id + '|' + h.k, h])));
+    this._hung = new Map([
+      ...walls.flatMap(r => r.works.map(h => [r.id + '|' + h.k, h])),
+      ...walls.flatMap(r => ghosts(r.id, r.works.length ? 3 : 7).map(g => [r.id + '|' + g.k, g])),
+    ]);
     box.hidden = false;
     hall.scrollLeft = 0;
     hall.focus({ preventScroll: true });
@@ -306,7 +372,7 @@ export class UI {
       }
       this._drain();
     }, { root: hall, rootMargin: '400px' });
-    $$('.hung', hall).forEach(el => this._seen.observe(el));
+    $$('.hung:not([data-ghost])', hall).forEach(el => this._seen.observe(el));
   }
 
   _drain() {
@@ -371,6 +437,17 @@ export class UI {
     const p = $('#plaque');
     if (!h) { p.hidden = true; return; }
     p.hidden = false;
+    if (h.ghost) {
+      p.innerHTML = `
+        <div>
+          <p class="plaque__title">Not painted yet</p>
+          <p class="plaque__meta">${escapeHtml(h.note)}</p>
+        </div>
+        <div class="plaque__side">
+          <p class="plaque__when">One interval fills one frame</p>
+        </div>`;
+      return;
+    }
     p.innerHTML = `
       <div>
         <p class="plaque__title">${escapeHtml(h.a.title)}</p>
@@ -788,6 +865,7 @@ export class UI {
       const el = e.target.closest('.hung');
       if (!el || this._dragged) return;
       const h = this._hung?.get(el.dataset.room + '|' + el.dataset.hung);
+      if (h?.ghost) { this.closeMuseum(); return; }
       if (h) { this.closeMuseum(); this.on.rehang?.(h); }
     });
     hall.addEventListener('wheel', e => {                 // a hall runs sideways
