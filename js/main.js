@@ -51,6 +51,10 @@ const paintProgress = () =>
 
 let swapping = false;        // holding the old picture while the next one loads
 let hanging = 0;             // only the most recent request gets to hang
+// A finished picture stays on the wall until you do something about it. The
+// interval ending marks the next one as due; it goes up when the next interval
+// actually starts running, or the moment you ask for another.
+let due = false;
 const firstRun = !load('settings', null);
 
 /* ------------------------------------------------ pictures */
@@ -125,6 +129,8 @@ ui.renderPlaylists();
 /* --------------------------------------------------- clock */
 timer.onstate = t => {
   ui.setState(t);
+  // the next picture waits for the next interval to actually begin
+  if (due && t.state === 'running') { due = false; repin(0); hang({ silent: true }); }
   if (!tape.live) return;
   t.state === 'running'
     ? tape.resume(() => timer.progress, () => timer.left)
@@ -132,10 +138,11 @@ timer.onstate = t => {
 };
 
 timer.onphase = ({ phase, completed }) => {
-  repin(0);
+  // no repin here: the picture that just finished stays finished on the wall.
+  // The brush is re-pinned when the next one actually goes up.
+  due = true;                   // marked, not hung: onstate puts it up when you start
   ui.setState(timer);
   if (tape.live) tape.begin(() => timer.progress, () => timer.left);
-  hang({ silent: true });
   if (completed && settings.chimes) {
     radio.duck(2800);
     phase === 'focus' ? sound.chimeWork() : sound.chimeRest();
@@ -179,7 +186,8 @@ function frame(now) {
   // with a tape running there is nothing to paint, and video is busy enough
   // under type that the scrims stay up rather than being measured
   if (!tape.live) {
-    if (!swapping) painter.setProgress(Math.max(.006, p));  // a few marks on the canvas before you begin
+    // between intervals the finished picture is held finished, not wound back
+    if (!swapping) painter.setProgress(due ? 1 : Math.max(.006, p));
     painter.frame(dt);
     if (now - scrimAt > 800) {
       scrimAt = now;
@@ -208,7 +216,7 @@ ui.on = {
     ui.toast({ kicker: timer.label, name: `${Math.round(timer.duration / 60000)} minutes`,
                seal: dir > 0 ? '+' : '−', ms: 2000 });
   },
-  nextArt() { hang({ silent: true }); },
+  nextArt() { due = false; repin(0); hang({ silent: true }); },
   rehang(h) {
     const art = { ...h.a, key: h.k, src: h.a.src, museumShort: h.a.museum, artistBio: '', place: '', culture: '',
                   classification: '', department: '', gallery: '', credit: '', dims: '', alt: h.a.title, lqip: '', ratio: 0 };
